@@ -58,7 +58,7 @@ def check_pause(thread_tag: str, current_action: str, current_ip: str) -> None:
     assert state.pause_event is not None
     while not state.pause_event.is_set():
         raise_if_exit_requested()
-        update_thread_board(thread_tag, action="[bold red]ΓÅ╕ PAUSED[/]", active_ip="-")
+        update_thread_board(thread_tag, action="[bold red]⏸ PAUSED[/]", active_ip="-")
         state.pause_event.wait(0.1)
     raise_if_exit_requested()
     update_thread_board(thread_tag, action=current_action, active_ip=current_ip)
@@ -206,14 +206,10 @@ def download_github_url(
         if not is_fail(res):
             return res, "Direct IP"
 
-        backoff = min(0.5 * (2 ** attempt), 8.0)
-        jitter = backoff * 0.25 * (2 * random.random() - 1)
-        sleep_time = backoff + jitter
-
         # Retry 403 a few times before giving up.
         # In practice, the same target can briefly flip between allowed and forbidden responses.
         if res == b"FORBIDDEN":
-            if not interruptible_sleep(max(0.1, sleep_time)):
+            if not interruptible_sleep(1.5):
                 raise ScanInterrupted
             continue
             
@@ -221,7 +217,7 @@ def download_github_url(
         if attempt >= 1:
             break
         else:
-            if not interruptible_sleep(max(0.1, sleep_time)):
+            if not interruptible_sleep(1.0):
                 raise ScanInterrupted
             continue
 

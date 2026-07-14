@@ -1,3 +1,8 @@
+# ---------------------------------------------------------------------------------- #
+#                            Part of the X3r0Day project.                            #
+# ---------------------------------------------------------------------------------- #
+
+
 import argparse
 import os
 import threading
@@ -15,11 +20,6 @@ def parse_args():
     parser.add_argument("--no-commit-history", action="store_true", help="Disable commit history scanning.")
     parser.add_argument("--prefer-proxy", action="store_true", help="Try proxy download before direct IP.")
     parser.add_argument("--up-proxy", action="store_true", help="Persist proxy updates to live_proxies.txt.")
-    parser.add_argument("--log-file", type=str, help="Path to write JSON log file.")
-    parser.add_argument("--dry-run", action="store_true", help="Preview without writing results.")
-    parser.add_argument("--max-age", type=int, help="Purge findings older than N days.")
-    parser.add_argument("--include-ext", type=str, help="Comma-separated file extensions to scan (e.g., .py,.js)")
-    parser.add_argument("--exclude-ext", type=str, help="Comma-separated file extensions to skip")
     return parser.parse_args()
 
 
@@ -38,16 +38,6 @@ def apply_runtime_overrides(args) -> None:
         state.PREFER_PROXY = True
     if args.up_proxy:
         state.UPDATE_PROXY_FILE  = True
-    if args.log_file:
-        state.LOG_FILE = args.log_file
-    if args.dry_run:
-        state.DRY_RUN = True
-    if args.max_age is not None:
-        state.MAX_AGE_DAYS = max(1, args.max_age)
-    if args.include_ext:
-        state.INCLUDE_EXTENSIONS = [e.strip().lower() for e in args.include_ext.split(",") if e.strip()]
-    if args.exclude_ext:
-        state.EXCLUDE_EXTENSIONS = [e.strip().lower() for e in args.exclude_ext.split(",") if e.strip()]
 
 
 def reset_runtime_state(api_signatures_ref: list) -> None:

@@ -21,18 +21,18 @@ def build_msgs(sys_txt: str, user_txt: str, history: Optional[List[Dict[str, str
 def remember_exchange(history: Optional[List[Dict[str, str]]], user_txt: str, assistant_txt: str) -> None:
     if history is None:
         return
-    history.extend([
-        {"role": "user", "content": user_txt},
-        {"role": "assistant", "content": assistant_txt},
-    ])
+    history.extend(
+        [
+            {"role": "user", "content": user_txt},
+            {"role": "assistant", "content": assistant_txt},
+        ]
+    )
     del history[:-MAX_HISTORY_MESSAGES]
 
 
 def get_key(console=None) -> str:
     key = os.environ.get("GROQ_API_KEY")
     if key:
-        if not key.startswith("gsk_"):
-            raise RuntimeError("Invalid GROQ_API_KEY format. Expected key starting with 'gsk_'")
         return key
     if console is None:
         raise RuntimeError("GROQ_API_KEY not set and no console to prompt.")
@@ -43,13 +43,15 @@ def get_key(console=None) -> str:
 
 
 def _json_from_text(txt: str) -> Dict[str, Any]:
+    # We salvage JSON when the model wraps it in text.
+    # For example, "Sure! {\"mode\":\"query\"}" -> {"mode":"query"}.
     try:
         return json.loads(txt)
     except json.JSONDecodeError:
         start = txt.find("{")
         end = txt.rfind("}")
         if start != -1 and end != -1 and end > start:
-            return json.loads(txt[start: end + 1])
+            return json.loads(txt[start : end + 1])
         raise
 
 
@@ -69,7 +71,13 @@ def ask_text(msgs: List[Dict[str, str]], key: str, cfg: Dict[str, Any]) -> str:
     tmo = float(cfg.get("timeout", 20))
     temp = float(cfg.get("temp", 0.1))
     tries = int(cfg.get("max_retries", 1))
-    pay = {"model": mdl, "messages": msgs, "temperature": temp}
+
+    pay = {
+        "model": mdl,
+        "messages": msgs,
+        "temperature": temp,
+    }
+
     err = None
     for _ in range(max(1, tries)):
         try:
@@ -87,12 +95,14 @@ def ask_json(msgs: List[Dict[str, str]], key: str, cfg: Dict[str, Any]) -> Dict[
     tmo = float(cfg.get("timeout", 20))
     temp = float(cfg.get("json_temp", 0))
     tries = int(cfg.get("max_retries", 1))
+
     pay = {
         "model": mdl,
         "response_format": {"type": "json_object"},
         "messages": msgs,
         "temperature": temp,
     }
+
     err = None
     for _ in range(max(1, tries)):
         try:
