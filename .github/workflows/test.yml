@@ -8,8 +8,8 @@ jobs:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -r requirements.txt pytest pytest-cov
+      - run: UV pip install -r requirements.txt pytest pytest-cov
       - run: pytest tests/ --cov=src --cov-fail-under=70 -v
