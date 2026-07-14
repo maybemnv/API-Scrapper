@@ -1,4 +1,4 @@
-﻿import warnings
+import warnings
 
 warnings.filterwarnings("ignore", message=r".*doesn't match a supported version.*", category=UserWarning)
 

@@ -1,4 +1,4 @@
-﻿import re
+import re
 from typing import List, Optional
 
 from shared.ai_client import ask_json, build_msgs, get_key, remember_exchange
