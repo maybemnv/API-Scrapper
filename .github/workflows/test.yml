@@ -11,5 +11,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install requests rich pytest pytest-cov
+      - run: UV pip install -r requirements.txt pytest pytest-cov
       - run: pytest tests/ --cov=src --cov-fail-under=70 -v
