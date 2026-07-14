@@ -366,9 +366,13 @@ def main():
                 chunks.append((cursor, chunk_end, "trending"))
             if "relevant" in MODES:
                 chunks.append((cursor, chunk_end, "relevant"))
+            ai_types = ["search_google", "search_claude", "search_openai", "search_groq", "search_hf", "search_perplexity", "search_replicate", "search_openrouter", "search_xai", "search_cerebras"]
             if "search_ai_all" in MODES:
-                for ai_mode in ["search_google", "search_claude", "search_openai", "search_groq", "search_hf", "search_perplexity", "search_replicate", "search_openrouter", "search_xai", "search_cerebras"]:
-                    if ai_mode not in MODES:
+                for ai_mode in ai_types:
+                    chunks.append((cursor, chunk_end, ai_mode))
+            else:
+                for ai_mode in ai_types:
+                    if ai_mode in MODES:
                         chunks.append((cursor, chunk_end, ai_mode))
             cursor = chunk_end
 
