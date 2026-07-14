@@ -8,6 +8,7 @@ import sys
 
 from src.logging_setup import setup_logging
 from src.scanner import scanner_state as state
+from src.APISniffer import main as run_discovery
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,6 +30,8 @@ def main() -> None:
     if args.dry_run:
         state.DRY_RUN = True
         logging.getLogger("api-sniffer").info("Dry-run mode enabled — no results will be written")
+
+    run_discovery()
 
 
 if __name__ == "__main__":
