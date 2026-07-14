@@ -15,7 +15,7 @@ def normalize_branch_name(branch) -> Optional[str]:
         return None
     b = branch.strip().strip("/")
     if b.startswith("refs/heads/"):
-        b = b[len("refs/heads/"):]
+        b = b[len("refs/heads/") :]
     return b or None
 
 

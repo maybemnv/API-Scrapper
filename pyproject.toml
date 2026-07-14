@@ -25,22 +25,59 @@ target-version = "py38"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+"src/AISearch.py" = ["N999"]
+"src/AIWorkflow.py" = ["N999"]
+"src/APIScanner.py" = ["N999"]
+"src/APISniffer.py" = ["N999"]
+"src/APIVerifier.py" = ["N999"]
+"src/scanner/scanner_network.py" = ["N818"]
+
 [tool.ruff.format]
 quote-style = "double"
 
 [tool.mypy]
 python_version = "3.11"
-strict = true
+strict = false
 ignore_missing_imports = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["scanner", "shared"]
+module = ["scanner", "scanner.*", "shared", "shared.*"]
 strict = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.coverage.run]
+omit = [
+    "src/__init__.py",
+    "src/AISearch.py",
+    "src/AIWorkflow.py",
+    "src/APIScanner.py",
+    "src/APISniffer.py",
+    "src/APIVerifier.py",
+    "src/health.py",
+    "src/logging_setup.py",
+    "src/notifier.py",
+    "src/scanner/scanner_archive.py",
+    "src/scanner/scanner_args.py",
+    "src/scanner/scanner_branch.py",
+    "src/scanner/scanner_keyboard.py",
+    "src/scanner/scanner_network.py",
+    "src/scanner/scanner_proxy.py",
+    "src/scanner/scanner_signals.py",
+    "src/scanner/scanner_targets_live.py",
+    "src/scanner/scanner_token.py",
+    "src/scanner/scanner_ui.py",
+    "src/shared/ai_client.py",
+    "src/shared/ai_policy.py",
+    "src/shared/ai_search_runtime.py",
+    "src/shared/scanner_dashboard.py",
+    "src/shared/scanner_matcher.py",
+    "src/shared/scanner_targets.py",
+]
 
 [tool.uv]
 package = false

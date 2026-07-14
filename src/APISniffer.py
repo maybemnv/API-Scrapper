@@ -4,9 +4,7 @@
 #          provided proper credit is given to the original project X3r0Day.          #
 # ---------------------------------------------------------------------------------- #
 
-##############################################################################################################################################################
-#    So This code basically scrapes the repos and saves them in `recent_repos.json` file, and it uses proxy list if github API blocks/ratelimits your IP.    #
-##############################################################################################################################################################
+# Discovers GitHub repositories, writes recent_repos.json, and supports proxy fallback for rate limits.
 
 # ---------------------------------------------------------------------------------- #
 #                                   DISCLAIMER                                       #
@@ -36,7 +34,7 @@
 # ---------------------------------------------------------------------------------- #
 
 
-#--------------------------------------#
+# --------------------------------------#
 #     Error Codes and its meanings     #
 # -------------------------------------#
 #   422 = No more results after that   #
@@ -46,52 +44,57 @@
 # ------------------------------------ #
 
 
-
-
 import argparse
 import json
 import os
 import random
 import signal
-import sys
 import tempfile
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional
 
 from shared.requests_compat import requests
 
-from datetime import (
-    datetime,
-    timedelta,
-    timezone
-)
-
-
-
-LOOKBACK_MINS = 3     # 3 mins for now is enough unless you need bigger dataset
-CHUNK_MINS = 1        # Time-slice per chunk
+LOOKBACK_MINS = 3  # 3 mins for now is enough unless you need bigger dataset
+CHUNK_MINS = 1  # Time-slice per chunk
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 TARGET_QUEUE_FILE = str(ROOT_DIR / "recent_repos.json")
 PROXY_FILE = str(ROOT_DIR / "live_proxies.txt")
 
-RESULTS_PER_PAGE = 100   # GH only allows 100
-PAGES_TO_SCRAPE = 10     # GH only allows 10
+RESULTS_PER_PAGE = 100  # GH only allows 100
+PAGES_TO_SCRAPE = 10  # GH only allows 10
 NET_TIMEOUT = 10
 PROXY_RETRY_LIMIT = 200
 
 MAX_SPLIT_DEPTH = 10
 
 SCANNED_HISTORY = [
-    str(ROOT_DIR/"clean_repos.json"),
-    str(ROOT_DIR/"failed_repos.json"),
-    str(ROOT_DIR/"leaked_keys.json"),
+    str(ROOT_DIR / "clean_repos.json"),
+    str(ROOT_DIR / "failed_repos.json"),
+    str(ROOT_DIR / "leaked_keys.json"),
 ]
 
 SPOOFED_UA = "XeroDay-APISniffer/1.0"
 shutdown_requested = False
-MODES = ["new", "trending", "relevant", "search_google", "search_claude", "search_openai", "search_groq", "search_hf", "search_perplexity", "search_replicate", "search_openrouter", "search_xai", "search_cerebras", "search_ai_all"]
+MODES = [
+    "new",
+    "trending",
+    "relevant",
+    "search_google",
+    "search_claude",
+    "search_openai",
+    "search_groq",
+    "search_hf",
+    "search_perplexity",
+    "search_replicate",
+    "search_openrouter",
+    "search_xai",
+    "search_cerebras",
+    "search_ai_all",
+]
 
 
 class DiscoveryRequestError(RuntimeError):
@@ -104,7 +107,9 @@ def parse_args():
     parser.add_argument("--chunk-mins", type=int, help="Time window per query chunk.")
     parser.add_argument("--pages-to-scrape", type=int, help="Maximum GitHub result pages to fetch per chunk.")
     parser.add_argument("--proxy-retry-limit", type=int, help="Maximum proxies to try before giving up.")
-    parser.add_argument("--modes", type=str, help="Comma-separated scan modes (includes search_ai_all, search_xai, etc)")
+    parser.add_argument(
+        "--modes", type=str, help="Comma-separated scan modes (includes search_ai_all, search_xai, etc)"
+    )
     return parser.parse_args()
 
 
@@ -120,7 +125,22 @@ def apply_runtime_overrides(args) -> None:
     if args.proxy_retry_limit is not None:
         PROXY_RETRY_LIMIT = max(1, args.proxy_retry_limit)
     if args.modes is not None:
-        valid_modes = {"new", "trending", "relevant", "search_google", "search_claude", "search_openai", "search_groq", "search_hf", "search_perplexity", "search_replicate", "search_openrouter", "search_xai", "search_cerebras", "search_ai_all"}
+        valid_modes = {
+            "new",
+            "trending",
+            "relevant",
+            "search_google",
+            "search_claude",
+            "search_openai",
+            "search_groq",
+            "search_hf",
+            "search_perplexity",
+            "search_replicate",
+            "search_openrouter",
+            "search_xai",
+            "search_cerebras",
+            "search_ai_all",
+        }
         parsed_modes = [m.strip().lower() for m in args.modes.split(",")]
         MODES = [m for m in parsed_modes if m in valid_modes]
         if not MODES:
@@ -129,7 +149,7 @@ def apply_runtime_overrides(args) -> None:
 
 def grab_proxies(filepath: str = PROXY_FILE) -> List[str]:
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, encoding="utf-8") as f:
             return [line.strip() for line in f if line.strip()]
     except FileNotFoundError:
         return []
@@ -153,17 +173,27 @@ def get_search_query(start_time: datetime, end_time: datetime, page: int = 1, qu
             "per_page": RESULTS_PER_PAGE,
             "page": page,
         }
-    elif query_type == "search_google": q = f"AIzaSy author-date:{start_str}..{end_str}"
-    elif query_type == "search_claude": q = f"sk-ant-api author-date:{start_str}..{end_str}"
-    elif query_type == "search_openai": q = f"sk-proj author-date:{start_str}..{end_str}"
-    elif query_type == "search_groq": q = f"gsk_ author-date:{start_str}..{end_str}"
-    elif query_type == "search_hf": q = f"hf_ author-date:{start_str}..{end_str}"
-    elif query_type == "search_perplexity": q = f"pplx- author-date:{start_str}..{end_str}"
-    elif query_type == "search_replicate": q = f"r8_ author-date:{start_str}..{end_str}"
-    elif query_type == "search_openrouter": q = f"sk-or-v1- author-date:{start_str}..{end_str}"
-    elif query_type == "search_xai": q = f"xai- author-date:{start_str}..{end_str}"
-    elif query_type == "search_cerebras": q = f"cs- author-date:{start_str}..{end_str}"
-    
+    elif query_type == "search_google":
+        q = f"AIzaSy author-date:{start_str}..{end_str}"
+    elif query_type == "search_claude":
+        q = f"sk-ant-api author-date:{start_str}..{end_str}"
+    elif query_type == "search_openai":
+        q = f"sk-proj author-date:{start_str}..{end_str}"
+    elif query_type == "search_groq":
+        q = f"gsk_ author-date:{start_str}..{end_str}"
+    elif query_type == "search_hf":
+        q = f"hf_ author-date:{start_str}..{end_str}"
+    elif query_type == "search_perplexity":
+        q = f"pplx- author-date:{start_str}..{end_str}"
+    elif query_type == "search_replicate":
+        q = f"r8_ author-date:{start_str}..{end_str}"
+    elif query_type == "search_openrouter":
+        q = f"sk-or-v1- author-date:{start_str}..{end_str}"
+    elif query_type == "search_xai":
+        q = f"xai- author-date:{start_str}..{end_str}"
+    elif query_type == "search_cerebras":
+        q = f"cs- author-date:{start_str}..{end_str}"
+
     if query_type.startswith("search_"):
         return {
             "q": q,
@@ -184,6 +214,7 @@ def get_search_query(start_time: datetime, end_time: datetime, page: int = 1, qu
 
 def format_proxy_dict(ip_port: str) -> dict:
     return {"http": f"http://{ip_port}", "https": f"http://{ip_port}"}
+
 
 # Will remove proxy if bad proxy.
 def remove_proxy(proxy_pool: List[str], proxy_ip: str) -> None:
@@ -241,12 +272,14 @@ def ensure_json_list_file(filename: str) -> None:
         return
     write_json_snapshot([], filename)
 
+
 def get_github_token() -> Optional[str]:
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     if not token:
         return None
     token = token.strip()
     return token or None
+
 
 def build_github_headers() -> dict:
     headers = {"User-Agent": SPOOFED_UA}
@@ -261,11 +294,7 @@ def build_github_headers() -> dict:
     return headers
 
 
-
-
-def make_request(
-    session_obj: requests.Session, endpoint: str, query: dict, ips: List[str]
-) -> requests.Response:
+def make_request(session_obj: requests.Session, endpoint: str, query: dict, ips: List[str]) -> requests.Response:
     if shutdown_requested:
         raise KeyboardInterrupt
 
@@ -274,9 +303,7 @@ def make_request(
 
     # Try with our real IP first
     try:
-        req = session_obj.get(
-            endpoint, params=query, headers=browser_headers, timeout=NET_TIMEOUT
-        )
+        req = session_obj.get(endpoint, params=query, headers=browser_headers, timeout=NET_TIMEOUT)
     except requests.RequestException as exc:
         direct_error = exc
         req = None
@@ -343,7 +370,7 @@ def sync_results_to_disk(raw_json: dict, filename: str = TARGET_QUEUE_FILE):
 
     if os.path.exists(filename):
         try:
-            with open(filename, "r", encoding="utf-8") as f:
+            with open(filename, encoding="utf-8") as f:
                 current_queue = json.load(f)
                 for item in current_queue:
                     blacklist.add(item.get("name"))
@@ -353,7 +380,7 @@ def sync_results_to_disk(raw_json: dict, filename: str = TARGET_QUEUE_FILE):
     for log_file in SCANNED_HISTORY:
         if os.path.exists(log_file):
             try:
-                with open(log_file, "r", encoding="utf-8") as f:
+                with open(log_file, encoding="utf-8") as f:
                     done_data = json.load(f)
                     for entry in done_data:
                         repo_id = entry.get("repo") or entry.get("name")
@@ -388,19 +415,17 @@ def sync_results_to_disk(raw_json: dict, filename: str = TARGET_QUEUE_FILE):
     return new_finds
 
 
-
-
-
 def main():
     global shutdown_requested
     shutdown_requested = False
     ensure_json_list_file(TARGET_QUEUE_FILE)
 
-    api_url = "https://api.github.com/search/repositories"
     proxies = grab_proxies()
 
-    print(f"[*] Scouring GitHub for repos from the last {LOOKBACK_MINS} minutes "
-          f"(using {CHUNK_MINS}-min chunks with adaptive bisection)...")
+    print(
+        f"[*] Scouring GitHub for repos from the last {LOOKBACK_MINS} minutes "
+        f"(using {CHUNK_MINS}-min chunks with adaptive bisection)..."
+    )
     if proxies:
         print(f"[*] Loaded {len(proxies)} proxies as fallback.")
     else:
@@ -426,9 +451,20 @@ def main():
             if "relevant" in MODES:
                 chunks.append((cursor, chunk_end, "relevant"))
             if "search_ai_all" in MODES:
-                ai_types = ["search_google", "search_claude", "search_openai", "search_groq", "search_hf", "search_perplexity", "search_replicate", "search_openrouter", "search_xai", "search_cerebras"]
+                ai_types = [
+                    "search_google",
+                    "search_claude",
+                    "search_openai",
+                    "search_groq",
+                    "search_hf",
+                    "search_perplexity",
+                    "search_replicate",
+                    "search_openrouter",
+                    "search_xai",
+                    "search_cerebras",
+                ]
                 for ai_mode in ai_types:
-                    if ai_mode not in MODES: # Only add if not independently provided
+                    if ai_mode not in MODES:  # Only add if not independently provided
                         chunks.append((cursor, chunk_end, ai_mode))
             cursor = chunk_end
 
@@ -452,16 +488,16 @@ def main():
                 start_time, end_time, query_type = chunk_item
 
             chunk_idx += 1
-            
-            t_start = start_time.strftime('%H:%M:%S')
-            t_end = end_time.strftime('%H:%M:%S')
+
+            t_start = start_time.strftime("%H:%M:%S")
+            t_end = end_time.strftime("%H:%M:%S")
 
             if query_type.startswith("search_"):
                 current_api_url = "https://api.github.com/search/commits"
             else:
                 current_api_url = "https://api.github.com/search/repositories"
 
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
             print(f"[Chunk {chunk_idx}] {t_start} -> {t_end} UTC | Type: {query_type}")
 
             api_query = get_search_query(start_time, end_time, page=1, query_type=query_type)
@@ -488,14 +524,17 @@ def main():
 
             print(f"  [i] Sniffer shows {repo_count} newborn repos here")
 
-            # 1k hard cap 
+            # 1k hard cap
             if repo_count >= 1000:
                 mid_point = start_time + (end_time - start_time) / 2
                 # Don't split if it's less than a second wide, that's just silly
                 if (mid_point - start_time).total_seconds() < 1:
                     print("  [!] Chunk can't be split further. Grabbing what we fetched...")
                 elif query_type.startswith("search_"):
-                    print(f"  [!] Global search reached {repo_count} hits. Ignoring time-chunk slicing. Grabbing what we fetched...")
+                    print(
+                        f"  [!] Global search reached {repo_count} hits. "
+                        "Ignoring time-chunk slicing. Grabbing what we fetched..."
+                    )
                 else:
                     print(f"  [↓] The {repo_count} hits the 1k cap! Slicing chunk in half...")
                     # Insert the two halves (newer half first)
@@ -558,13 +597,11 @@ def main():
     finally:
         http_session.close()
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     if interrupted or shutdown_requested:
         print(f"[!] Stopped early. Saved {total_new_finds} new targets to the queue so far.")
     else:
         print(f"[+] Done! Successfully added {total_new_finds} total new targets to the queue.")
-
-
 
 
 if __name__ == "__main__":

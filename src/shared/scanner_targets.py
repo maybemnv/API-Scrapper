@@ -4,7 +4,6 @@ from typing import Callable, List, Optional
 from .ai_client import ask_json
 from .ai_policy import load_pol
 
-
 GITHUB_REPO_URL_PATTERN = re.compile(
     r"(?:https?://)?(?:www\.)?github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)(?:\.git)?(?:[/?#][^\s]*)?",
     re.IGNORECASE,
@@ -68,6 +67,7 @@ def build_repo_data(repo_name: str) -> Optional[dict]:
         return None
     return {"name": normalized_name, "url": f"https://github.com/{normalized_name}"}
 
+
 # This is used to reduce pasted GitHub text to a clean owner/repo target.
 def normalize_repo_target(url_text: str) -> Optional[dict]:
     candidate = url_text.strip()
@@ -116,6 +116,7 @@ def extract_repo_targets_regex(prompt_text: str) -> List[dict]:
 
     return dedupe_repo_targets(extracted_targets)
 
+
 # This is used to let the model act as a loose parser while keeping the final output strict.
 # For example, if the model returns a repo subpath, it is normalized back to owner/repo.
 def extract_repo_targets_with_ai(
@@ -162,6 +163,7 @@ def extract_repo_targets_with_ai(
             normalized_targets.append(repo_data)
 
     return dedupe_repo_targets(normalized_targets)
+
 
 # This merges the AI result with the regex result so obvious targets still work without the model.
 def resolve_repo_targets(

@@ -2,7 +2,6 @@ from typing import Dict, List, Pattern
 
 from .signature_loader import build_sigs, sig_names
 
-
 HEROKU_API_SIGNATURE_NAME = "Heroku API Key"
 
 # The base list is now data-driven. Edit data/signatures.json to add or update rules.

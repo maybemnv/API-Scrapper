@@ -4,8 +4,8 @@ import time
 from typing import Any, Dict, List, Optional
 
 from rich.prompt import Prompt
-from shared.requests_compat import requests
 
+from shared.requests_compat import requests
 
 MAX_HISTORY_MESSAGES = 12
 
@@ -78,7 +78,7 @@ def ask_text(msgs: List[Dict[str, str]], key: str, cfg: Dict[str, Any]) -> str:
         "temperature": temp,
     }
 
-    err = None
+    err: Optional[BaseException] = None
     for _ in range(max(1, tries)):
         try:
             data = _post(url, key, pay, tmo)
@@ -86,7 +86,7 @@ def ask_text(msgs: List[Dict[str, str]], key: str, cfg: Dict[str, Any]) -> str:
         except Exception as exc:
             err = exc
             time.sleep(0.2)
-    raise err
+    raise err or RuntimeError("AI text request failed")
 
 
 def ask_json(msgs: List[Dict[str, str]], key: str, cfg: Dict[str, Any]) -> Dict[str, Any]:
@@ -103,7 +103,7 @@ def ask_json(msgs: List[Dict[str, str]], key: str, cfg: Dict[str, Any]) -> Dict[
         "temperature": temp,
     }
 
-    err = None
+    err: Optional[BaseException] = None
     for _ in range(max(1, tries)):
         try:
             data = _post(url, key, pay, tmo)
@@ -111,4 +111,4 @@ def ask_json(msgs: List[Dict[str, str]], key: str, cfg: Dict[str, Any]) -> Dict[
         except Exception as exc:
             err = exc
             time.sleep(0.2)
-    raise err
+    raise err or RuntimeError("AI JSON request failed")

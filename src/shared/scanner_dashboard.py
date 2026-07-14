@@ -19,7 +19,11 @@ def paint_dashboard(
     max_download_size_bytes: int,
 ) -> Layout:
     with ui_mutex:
-        state_tag = "[bold green]▶ RUNNING[/]" if pause_event.is_set() else "[bold blink red]⏸ PAUSED (Press SPACE to Resume)[/]"
+        state_tag = (
+            "[bold green]▶ RUNNING[/]"
+            if pause_event.is_set()
+            else "[bold blink red]⏸ PAUSED (Press SPACE to Resume)[/]"
+        )
         top_bar_text = (
             f"{state_tag}  |  "
             f"[bold white]Queue Remaining:[/] {scoreboard['remaining']}  |  "
@@ -75,7 +79,8 @@ def paint_dashboard(
 
         input_prompt = (
             "[yellow]Describe GitHub repo URL(s) and press Enter (Esc to cancel):[/] "
-            if is_typing_url else "[dim]Press 'i' to ask AI to insert GitHub repo URL(s)[/]"
+            if is_typing_url
+            else "[dim]Press 'i' to ask AI to insert GitHub repo URL(s)[/]"
         )
         display_text = input_prompt + ("[bold white]" + input_buffer + "[/]" if is_typing_url else "")
         input_panel = Panel(display_text, title="[bold green]AI Target Insertion[/]", border_style="green")
@@ -91,8 +96,12 @@ def paint_dashboard(
             Layout(name="logs_section", ratio=3),
         )
 
-        system_feed = Text.from_markup("\n".join(log_history)) if log_history else Text("Awaiting events...", style="dim")
-        bounty_feed = Text.from_markup("\n".join(leak_history)) if leak_history else Text("No leaks found yet.", style="dim")
+        system_feed = (
+            Text.from_markup("\n".join(log_history)) if log_history else Text("Awaiting events...", style="dim")
+        )
+        bounty_feed = (
+            Text.from_markup("\n".join(leak_history)) if leak_history else Text("No leaks found yet.", style="dim")
+        )
 
         screen_layout["logs_section"].split_column(
             Layout(Panel(bounty_feed, title="[bold red]Recent Leaks Found[/]", border_style="red")),

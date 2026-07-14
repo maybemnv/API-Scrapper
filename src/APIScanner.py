@@ -4,9 +4,7 @@
 #          provided proper credit is given to the original project X3r0Day.          #
 # ---------------------------------------------------------------------------------- #
 
-#################################################################################################################################################
-#    So This code basically scans the repos and in `recent_repos.json` file, and it uses proxy list if github API blocks/ratelimits your IP.    #
-#################################################################################################################################################
+# Scans repositories from recent_repos.json and supports proxy fallback when GitHub rate-limits requests.
 
 
 # ---------------------------------------------------------------------------------- #
@@ -37,7 +35,7 @@
 # ---------------------------------------------------------------------------------- #
 
 
-#--------------------------------------#
+# --------------------------------------#
 #     Error Codes and its meanings     #
 # -------------------------------------#
 #   422 = No more results after that   #
@@ -72,7 +70,7 @@ import threading
 import time
 import zipfile
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from rich.console import Console
 from rich.live import Live
@@ -159,15 +157,16 @@ def dissect_repo_memory(repo_data: dict, thread_tag: str) -> dict:
     raise_if_exit_requested()
     start_time = time.time()
     target_repo = repo_data.get("name", "Unknown_Repo")
-    
-    update_thread_board(thread_tag, target=target_repo, action="[yellow]Initializing[/]", active_ip="-", reset_timer=True, dl_bytes=0)
-    
+
+    update_thread_board(
+        thread_tag, target=target_repo, action="[yellow]Initializing[/]", active_ip="-", reset_timer=True, dl_bytes=0
+    )
+
     archive_payload: Optional[Union[bytes, str]] = None
     archive_kind: Optional[str] = None
     successful_ip = "Direct IP"
     branch_candidates = build_archive_branch_candidates(repo_data, thread_tag)
     successful_branch = branch_candidates[0] if branch_candidates else state.DEFAULT_BRANCH_FALLBACKS[0]
-    
 
     # Try the known default branch first, then fall back to common names.
     for git_branch in branch_candidates:
@@ -194,24 +193,45 @@ def dissect_repo_memory(repo_data: dict, thread_tag: str) -> dict:
                 successful_ip = "git"
                 successful_branch = git_branch
                 break
-            
+
     elapsed = round(time.time() - start_time, 2)
 
     if archive_payload == b"FORBIDDEN_SKIP":
         log_dead_repo(target_repo, "Forbidden 403 (Skipped)", successful_ip, elapsed)
-        bump_score("failed"); bump_score("scanned")
-        return {"repo": target_repo, "status": "failed", "reason": "Forbidden 403 (Skipped)", "ip": successful_ip, "time_taken": elapsed}
+        bump_score("failed")
+        bump_score("scanned")
+        return {
+            "repo": target_repo,
+            "status": "failed",
+            "reason": "Forbidden 403 (Skipped)",
+            "ip": successful_ip,
+            "time_taken": elapsed,
+        }
 
     if archive_payload == b"TOO_LARGE":
         log_dead_repo(target_repo, "Skipped (Over 20MB Limit)", successful_ip, elapsed)
-        bump_score("failed"); bump_score("scanned")
-        return {"repo": target_repo, "status": "failed", "reason": "Over 20MB Limit", "ip": successful_ip, "time_taken": elapsed}
+        bump_score("failed")
+        bump_score("scanned")
+        return {
+            "repo": target_repo,
+            "status": "failed",
+            "reason": "Over 20MB Limit",
+            "ip": successful_ip,
+            "time_taken": elapsed,
+        }
 
     if not archive_payload or archive_payload == b"FAILED":
         crash_reason = "Connection Stalled / Exhausted" if archive_payload == b"FAILED" else "404 Not Found"
         log_dead_repo(target_repo, crash_reason, successful_ip, elapsed)
-        bump_score("failed"); bump_score("scanned")
-        return {"repo": target_repo, "status": "failed", "reason": crash_reason, "ip": successful_ip, "time_taken": elapsed}
+        bump_score("failed")
+        bump_score("scanned")
+        return {
+            "repo": target_repo,
+            "status": "failed",
+            "reason": crash_reason,
+            "ip": successful_ip,
+            "time_taken": elapsed,
+        }
 
     update_thread_board(thread_tag, action="[magenta]Extracting...[/]", active_ip=successful_ip, dl_bytes=0)
     caught_keys = []
@@ -240,8 +260,15 @@ def dissect_repo_memory(repo_data: dict, thread_tag: str) -> dict:
                 successful_ip = "git"
         else:
             log_dead_repo(target_repo, "Corrupted Zip", successful_ip, round(time.time() - start_time, 2))
-            bump_score("failed"); bump_score("scanned")
-            return {"repo": target_repo, "status": "failed", "reason": "BadZipFile", "ip": successful_ip, "time_taken": round(time.time() - start_time, 2)}
+            bump_score("failed")
+            bump_score("scanned")
+            return {
+                "repo": target_repo,
+                "status": "failed",
+                "reason": "BadZipFile",
+                "ip": successful_ip,
+                "time_taken": round(time.time() - start_time, 2),
+            }
     except tarfile.TarError:
         if archive_kind != "git":
             log_msg(f"[yellow][!] Invalid TAR payload for {target_repo}. Falling back to git clone.[/]")
@@ -255,57 +282,78 @@ def dissect_repo_memory(repo_data: dict, thread_tag: str) -> dict:
                 successful_ip = "git"
         else:
             log_dead_repo(target_repo, "Corrupted Tar", successful_ip, round(time.time() - start_time, 2))
-            bump_score("failed"); bump_score("scanned")
-            return {"repo": target_repo, "status": "failed", "reason": "BadTarFile", "ip": successful_ip, "time_taken": round(time.time() - start_time, 2)}
+            bump_score("failed")
+            bump_score("scanned")
+            return {
+                "repo": target_repo,
+                "status": "failed",
+                "reason": "BadTarFile",
+                "ip": successful_ip,
+                "time_taken": round(time.time() - start_time, 2),
+            }
     finally:
         if git_dir:
             shutil.rmtree(git_dir, ignore_errors=True)
 
     if scan_status == "TOO_LARGE":
         log_dead_repo(target_repo, "Skipped (Over 20MB Limit)", successful_ip, round(time.time() - start_time, 2))
-        bump_score("failed"); bump_score("scanned")
-        return {"repo": target_repo, "status": "failed", "reason": "Over 20MB Limit", "ip": successful_ip, "time_taken": round(time.time() - start_time, 2)}
+        bump_score("failed")
+        bump_score("scanned")
+        return {
+            "repo": target_repo,
+            "status": "failed",
+            "reason": "Over 20MB Limit",
+            "ip": successful_ip,
+            "time_taken": round(time.time() - start_time, 2),
+        }
     if scan_status == "FAILED":
         log_dead_repo(target_repo, "Scan Failed", successful_ip, round(time.time() - start_time, 2))
-        bump_score("failed"); bump_score("scanned")
-        return {"repo": target_repo, "status": "failed", "reason": "Scan Failed", "ip": successful_ip, "time_taken": round(time.time() - start_time, 2)}
+        bump_score("failed")
+        bump_score("scanned")
+        return {
+            "repo": target_repo,
+            "status": "failed",
+            "reason": "Scan Failed",
+            "ip": successful_ip,
+            "time_taken": round(time.time() - start_time, 2),
+        }
 
     # Scan recent commit history as patch text as well.
     # For example, a key removed from the working tree can still appear in an older commit.
     if state.SCAN_COMMIT_HISTORY:
         atom_url = f"https://github.com/{target_repo}/commits/{successful_branch}.atom"
         atom_bytes, current_ip = download_github_url(atom_url, thread_tag, "Downloading History")
-        
-        if atom_bytes and atom_bytes not in[b"FAILED", b"TOO_LARGE", b"NOT_FOUND", b"FORBIDDEN_SKIP"]:
-            atom_text = atom_bytes.decode('utf-8', errors='ignore')
+
+        if atom_bytes and atom_bytes not in [b"FAILED", b"TOO_LARGE", b"NOT_FOUND", b"FORBIDDEN_SKIP"]:
+            atom_text = atom_bytes.decode("utf-8", errors="ignore")
             extracted_shas = re.findall(r"Commit/([a-f0-9]{40})", atom_text)
-            
-            unique_shas =[]
+
+            unique_shas = []
             seen_shas = set()
             for sha in extracted_shas:
                 if sha not in seen_shas:
                     seen_shas.add(sha)
                     unique_shas.append(sha)
-            
-            commit_shas = unique_shas[:state.MAX_HISTORY_DEPTH]
-            
+
+            commit_shas = unique_shas[: state.MAX_HISTORY_DEPTH]
+
             for idx, sha in enumerate(commit_shas):
                 raise_if_exit_requested()
                 patch_url = f"https://github.com/{target_repo}/commit/{sha}.patch"
-                patch_action_str = f"DL Patch {idx+1}/{len(commit_shas)}"
+                patch_action_str = f"DL Patch {idx + 1}/{len(commit_shas)}"
                 patch_bytes, patch_ip = download_github_url(patch_url, thread_tag, patch_action_str)
-                
-                if patch_bytes and patch_bytes not in[b"FAILED", b"TOO_LARGE", b"NOT_FOUND", b"FORBIDDEN_SKIP"]:
-                    patch_text = patch_bytes.decode('utf-8', errors='ignore')
-                    check_pause(thread_tag, f"[magenta]Scan Patch {idx+1}/{len(commit_shas)}[/]", patch_ip)
-                    
+
+                if patch_bytes and patch_bytes not in [b"FAILED", b"TOO_LARGE", b"NOT_FOUND", b"FORBIDDEN_SKIP"]:
+                    patch_text = patch_bytes.decode("utf-8", errors="ignore")
+                    check_pause(thread_tag, f"[magenta]Scan Patch {idx + 1}/{len(commit_shas)}[/]", patch_ip)
+
                     new_keys = grep_scanner_text(patch_text, f"Commit {sha[:7]}", API_SIGNATURES, state.LINE_CUTOFF)
                     caught_keys.extend(new_keys)
 
     # Deduplicate findings, log results, update scores, and return the final scan summary
     bump_score("scanned")
     elapsed = round(time.time() - start_time, 2)
-    
+
     if caught_keys:
         # Deduplicate by secret value so the same token does not flood the report.
         # For example, the same key may appear in both a source file and a patch.
@@ -315,13 +363,31 @@ def dissect_repo_memory(repo_data: dict, thread_tag: str) -> dict:
         files_with_hits = sorted({k["file"] for k in unique_findings})
         found_api_types = {k["type"] for k in unique_findings}
         repo_stars = repo_data.get("stars", 0)
-        log_loot(target_repo, files_with_hits, len(unique_findings), found_api_types, successful_ip, elapsed, repo_stars)
-        
-        return {"repo": target_repo, "url": repo_data.get("url"), "status": "leaked", "total_secrets": len(unique_findings), "critical": repo_stars > 0, "stars": repo_stars, "findings": unique_findings, "ip": successful_ip, "time_taken": elapsed}
+        log_loot(
+            target_repo, files_with_hits, len(unique_findings), found_api_types, successful_ip, elapsed, repo_stars
+        )
+
+        return {
+            "repo": target_repo,
+            "url": repo_data.get("url"),
+            "status": "leaked",
+            "total_secrets": len(unique_findings),
+            "critical": repo_stars > 0,
+            "stars": repo_stars,
+            "findings": unique_findings,
+            "ip": successful_ip,
+            "time_taken": elapsed,
+        }
     else:
         bump_score("clean")
         log_msg(f"[green][+] Clean:[/] {target_repo} [dim]({elapsed}s)[/]")
-        return {"repo": target_repo, "url": repo_data.get("url"), "status": "clean", "ip": successful_ip, "time_taken": elapsed}
+        return {
+            "repo": target_repo,
+            "url": repo_data.get("url"),
+            "status": "clean",
+            "ip": successful_ip,
+            "time_taken": elapsed,
+        }
 
 
 def thread_runner(repo_data: dict):
@@ -335,7 +401,8 @@ def thread_runner(repo_data: dict):
     except Exception:
         safe_name = repo_data.get("name", "Unknown_Repo")
         log_dead_repo(safe_name, "Critical Thread Crash", "-", 0.0)
-        bump_score("failed"); bump_score("scanned")
+        bump_score("failed")
+        bump_score("scanned")
         return {"repo": safe_name, "status": "failed", "reason": "Thread Crash", "ip": "-", "time_taken": 0.0}
     finally:
         update_thread_board(thread_tag, target="Idle", action="-", active_ip="-", reset_timer=True, dl_bytes=0)
@@ -343,23 +410,24 @@ def thread_runner(repo_data: dict):
             if thread_tag != "Thread-Unknown":
                 state.available_thread_tags.append(thread_tag)
 
+
 def main() -> None:
     global API_SIGNATURES
     keyboard_thread = None
-    
+
     prompt_github_token()
-    
-    api_ref = [{}]
+
+    api_ref: List[Dict[str, object]] = [{}]
     reset_runtime_state(api_ref)
     API_SIGNATURES = api_ref[0]
-    
+
     state.AI_POL = load_pol(log_fn=console.print)
     ensure_json_list_file(state.LEAKS_JSON)
     ensure_json_list_file(state.DEAD_TARGETS_JSON)
     ensure_json_list_file(state.BORING_REPOS_JSON)
 
     try:
-        with open(state.QUEUE_JSON, "r", encoding="utf-8") as file_ptr:
+        with open(state.QUEUE_JSON, encoding="utf-8") as file_ptr:
             queued_targets = json.load(file_ptr)
     except FileNotFoundError:
         console.print(f"[bold red]Error:[/] {state.QUEUE_JSON} not found. Run the fetcher first.")
@@ -372,7 +440,7 @@ def main() -> None:
     set_active_proxies(read_proxies())
     state.scoreboard["total"] = len(queued_targets)
     state.scoreboard["remaining"] = len(queued_targets)
-    
+
     keyboard_thread = threading.Thread(target=keyboard_monitor, daemon=True)
     keyboard_thread.start()
     log_msg("[bold green]Scanner initiated. Press SPACE to Pause/Resume or I for AI target insertion.[/]")
@@ -384,8 +452,10 @@ def main() -> None:
                 idle_shutdown_deadline = None
                 for target in queued_targets:
                     pending_tasks.add(thread_pool.submit(thread_runner, target))
-                
-                while pending_tasks or has_manual_targets() or state.is_typing_url or idle_shutdown_deadline is not None:
+
+                while (
+                    pending_tasks or has_manual_targets() or state.is_typing_url or idle_shutdown_deadline is not None
+                ):
                     if state.exit_prog:
                         break
                     while True:
@@ -394,26 +464,29 @@ def main() -> None:
                             break
                         pending_tasks.add(thread_pool.submit(thread_runner, new_t))
                         idle_shutdown_deadline = None
-                        
+
                     if pending_tasks:
                         done_tasks, pending_tasks = wait(pending_tasks, timeout=0.25, return_when=FIRST_COMPLETED)
-                        
+
                         for finished_task in done_tasks:
                             try:
                                 task_outcome = finished_task.result()
                                 if task_outcome is None:
                                     continue
-                                if task_outcome["status"] == "leaked": dump_json_safely(state.LEAKS_JSON, task_outcome)
-                                elif task_outcome["status"] == "failed": dump_json_safely(state.DEAD_TARGETS_JSON, task_outcome)
-                                elif task_outcome["status"] == "clean": dump_json_safely(state.BORING_REPOS_JSON, task_outcome)
-                                    
+                                if task_outcome["status"] == "leaked":
+                                    dump_json_safely(state.LEAKS_JSON, task_outcome)
+                                elif task_outcome["status"] == "failed":
+                                    dump_json_safely(state.DEAD_TARGETS_JSON, task_outcome)
+                                elif task_outcome["status"] == "clean":
+                                    dump_json_safely(state.BORING_REPOS_JSON, task_outcome)
+
                                 remove_from_queue(task_outcome.get("repo"))
                                 bump_score("remaining", -1)
                             except ScanInterrupted:
                                 continue
                             except Exception:
                                 pass
-                        
+
                         live_screen.update(paint_dashboard())
                         if state.exit_prog:
                             break
@@ -444,7 +517,7 @@ def main() -> None:
     except KeyboardInterrupt:
         request_shutdown()
         console.print("\n[bold yellow]Scanner stop requested. Waiting for active threads to unwind...[/]")
-        
+
     finally:
         state.exit_prog = True
         if state.pause_event:
@@ -452,6 +525,7 @@ def main() -> None:
         if keyboard_thread is not None:
             keyboard_thread.join(timeout=1.0)
         save_good_proxies(console)
+
 
 if __name__ == "__main__":
     install_signal_handlers()

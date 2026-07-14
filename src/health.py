@@ -2,8 +2,9 @@ import http.server
 import json
 import threading
 
+
 class HealthHandler(http.server.BaseHTTPRequestHandler):
-    def do_GET(self):
+    def do_GET(self) -> None:
         if self.path == "/health":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -13,16 +14,18 @@ class HealthHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
-    def log_message(self, format, *args):
+    def log_message(self, format: str, *args: object) -> None:
         pass  # suppress log output
 
-def start_health_server(port=8080):
-    server = http.server.HTTPServer(("0.0.0.0", port), HealthHandler)
+
+def start_health_server(port: int = 8080) -> http.server.HTTPServer:
+    server = http.server.HTTPServer(("127.0.0.1", port), HealthHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server
 
+
 if __name__ == "__main__":
     start_health_server()
-    print(f"Health server running on port 8080")
+    print("Health server running on port 8080")
     threading.Event().wait()
