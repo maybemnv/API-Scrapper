@@ -1,7 +1,12 @@
 import warnings
 
-warnings.filterwarnings("ignore", message=r".*doesn't match a supported version.*", category=UserWarning)
 
-import requests as _requests  # noqa: E402
+warnings.filterwarnings(
+    "ignore",
+    message=r".*doesn't match a supported version.*",
+    category=Warning,
+    module=r"requests(\..*)?",
+)
 
-requests = _requests
+import requests as requests  # noqa: E402
+

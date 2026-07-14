@@ -1,35 +1,34 @@
+# ---------------------------------------------------------------------------------- #
+#                            Part of the X3r0Day project.                            #
+# ---------------------------------------------------------------------------------- #
+
 import os
-from typing import Optional
 
-
-def _validate_github_token(token: str) -> bool:
-    token = token.strip()
-    valid_prefixes = ("github_pat_", "ghp_", "gho_", "ghu_", "ghs_", "ghr_")
-    return any(token.startswith(p) and len(token) >= 30 for p in valid_prefixes)
-
-
-def prompt_github_token(console=None) -> Optional[str]:
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    if token:
-        if not _validate_github_token(token):
-            print("[yellow][!] Warning: GITHUB_TOKEN format looks invalid. Expected github_pat_ or ghp_ prefix.[/]")
-        return token
-    return None
-
+from rich.console import Console
 from rich.prompt import Prompt
 
+console = Console()
 
-def prompt_github_token():
-    try:
-        token = Prompt.ask(
-            "[cyan]GitHub token (optional, press Enter to skip)[/]",
-            default="",
-            show_default=False,
-            password=True,
-        )
-    except (EOFError, KeyboardInterrupt):
+
+def prompt_github_token() -> None:
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token and token.strip():
         return
 
-    token = (token or "").strip()
-    if token:
-        os.environ["GITHUB_TOKEN"] = token
+    console.print("[bold yellow][!] No GITHUB_TOKEN found. Unauthenticated requests are rate-limited to 60/hour.[/]")
+    console.print("[dim]    Generate a free token at: https://github.com/settings/tokens (no scopes needed)[/]")
+    try:
+        entered = Prompt.ask(
+            "[bold cyan]Enter your GitHub token (or press Enter to skip)[/]",
+            password=True,
+            default="",
+        )
+    except (EOFError, KeyboardInterrupt):
+        console.print("[bold yellow]    [!] Non-interactive shell — skipping token prompt (unauthenticated).[/]\n")
+        return
+
+    if entered:
+        os.environ["GITHUB_TOKEN"] = entered
+        console.print("[bold green]    [+] GitHub token set for this session.[/]\n")
+    else:
+        console.print("[bold yellow]    [!] Skipping — expect rate limiting.[/]\n")

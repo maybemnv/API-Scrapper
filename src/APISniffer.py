@@ -1,3 +1,51 @@
+# ---------------------------------------------------------------------------------- #
+#                            Part of the X3r0Day project.                            #
+#              You are free to use, modify, and redistribute this code,              #
+#          provided proper credit is given to the original project X3r0Day.          #
+# ---------------------------------------------------------------------------------- #
+
+##############################################################################################################################################################
+#    So This code basically scrapes the repos and saves them in `recent_repos.json` file, and it uses proxy list if github API blocks/ratelimits your IP.    #
+##############################################################################################################################################################
+
+# ---------------------------------------------------------------------------------- #
+#                                   DISCLAIMER                                       #
+# ---------------------------------------------------------------------------------- #
+# This tool is part of the X3r0Day Framework and is intended for educational         #
+# security research, and defensive analysis purposes only.                           #
+#                                                                                    #
+# The script queries publicly available GitHub repository metadata and stores it     #
+# locally for further analysis. It does not exploit, access, or modify any system.   #
+#                                                                                    #
+# Users are solely responsible for how this software is used. The authors of the     #
+# X3r0Day project do not encourage or condone misuse, unauthorized access, or any    #
+# activity that violates applicable laws, regulations, or the terms of service of    #
+# any platform.                                                                      #
+#                                                                                    #
+# Always respect platform policies, rate limits, and the privacy of developers.      #
+# If you discover sensitive information or exposed credentials during research,      #
+# follow responsible disclosure practices and notify the affected parties by         #
+# opening **Issues**                                                                 #
+#                                                                                    #
+# By using this software, you acknowledge that you understand these conditions and   #
+# accept full responsibility for your actions.                                       #
+#                                                                                    #
+# Project: X3r0Day Framework                                                         #
+# Tool:    X3r0Day's API Sniffer                                                     #
+# Author:  XeroDay                                                                   #
+# ---------------------------------------------------------------------------------- #
+
+
+#--------------------------------------#
+#     Error Codes and its meanings     #
+# -------------------------------------#
+#   422 = No more results after that   #
+#   200 = OKAY/GOOD                    #
+#   403 = Access Denied                #
+#   404 = Not Found                    #
+# ------------------------------------ #
+
+
 
 
 import argparse
@@ -7,7 +55,6 @@ import random
 import signal
 import sys
 import tempfile
-import threading
 import time
 from pathlib import Path
 from typing import List, Optional
@@ -201,10 +248,9 @@ def get_github_token() -> Optional[str]:
     token = token.strip()
     return token or None
 
-def build_github_headers(token_value: Optional[str] = None) -> dict:
+def build_github_headers() -> dict:
     headers = {"User-Agent": SPOOFED_UA}
-    if token_value is None:
-        token_value = get_github_token()
+    token_value = get_github_token()
     if token_value:
         normalized = token_value.strip()
         lowered = normalized.lower()
@@ -218,22 +264,12 @@ def build_github_headers(token_value: Optional[str] = None) -> dict:
 
 
 def make_request(
-    session_obj: requests.Session, endpoint: str, query: dict, ips: List[str],
-    rate_limiter: Optional[RateLimiter] = None,
-    token_iter: Optional[itertools.cycle] = None,
+    session_obj: requests.Session, endpoint: str, query: dict, ips: List[str]
 ) -> requests.Response:
     if shutdown_requested:
         raise KeyboardInterrupt
 
-    if rate_limiter:
-        rate_limiter.acquire()
-
-    token_value = None
-    if token_iter:
-        token_value = next(token_iter)
-        print(f"[*] Using token: {mask_token(token_value)}", flush=True)
-
-    browser_headers = build_github_headers(token_value)
+    browser_headers = build_github_headers()
     direct_error: Optional[Exception] = None
 
     # Try with our real IP first
@@ -355,48 +391,6 @@ def sync_results_to_disk(raw_json: dict, filename: str = TARGET_QUEUE_FILE):
 
 
 
-class RateLimiter:
-    def __init__(self, rate: float = 1.0):
-        self.rate = rate
-        self.tokens = rate
-        self._last = time.monotonic()
-        self._lock = threading.Lock()
-
-    def acquire(self) -> None:
-        with self._lock:
-            now = time.monotonic()
-            elapsed = now - self._last
-            self.tokens = min(self.rate, self.tokens + elapsed * self.rate)
-            if self.tokens < 1:
-                sleep_time = (1 - self.tokens) / self.rate
-                self._last = now + sleep_time
-                time.sleep(sleep_time)
-                self.tokens = 0
-            else:
-                self.tokens -= 1
-                self._last = now
-
-
-def get_tokens() -> List[str]:
-    single = get_github_token()
-    multi_raw = os.environ.get("GITHUB_TOKENS", "")
-    all_tokens: List[str] = []
-    if single:
-        all_tokens.append(single)
-    if multi_raw:
-        for t in multi_raw.split(","):
-            t = t.strip()
-            if t and t not in all_tokens:
-                all_tokens.append(t)
-    return all_tokens
-
-
-def mask_token(token: str) -> str:
-    if len(token) <= 8:
-        return token[:2] + "****"
-    return token[:4] + "****" + token[-4:]
-
-
 def main():
     global shutdown_requested
     shutdown_requested = False
@@ -411,10 +405,6 @@ def main():
         print(f"[*] Loaded {len(proxies)} proxies as fallback.")
     else:
         print("[*] No proxies loaded. Using direct connection only.")
-
-    rate_limiter = RateLimiter(rate=2.0)
-    all_tokens = get_tokens()
-    token_cycle = itertools.cycle(all_tokens) if all_tokens else None
 
     http_session = requests.Session()
     total_new_finds = 0
@@ -476,7 +466,7 @@ def main():
 
             api_query = get_search_query(start_time, end_time, page=1, query_type=query_type)
             try:
-                req = make_request(http_session, current_api_url, api_query, proxies, rate_limiter, token_cycle)
+                req = make_request(http_session, current_api_url, api_query, proxies)
             except DiscoveryRequestError as exc:
                 print(f"  [-] Chunk request failed. Skipping chunk. {exc}")
                 continue
@@ -532,7 +522,7 @@ def main():
                 print(f"  -> Fetching Page {page_num}/{pages_needed}...")
 
                 try:
-                    req = make_request(http_session, current_api_url, api_query, proxies, rate_limiter, token_cycle)
+                    req = make_request(http_session, current_api_url, api_query, proxies)
                 except DiscoveryRequestError as exc:
                     print(f"  [-] Page {page_num} request failed. Stopping this chunk. {exc}")
                     break

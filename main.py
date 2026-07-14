@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from __future__ import annotations
 
 import json
@@ -330,11 +329,6 @@ def run_manual_control_center() -> None:
 
 
 def main() -> None:
-    if "--version" in sys.argv[1:]:
-        from src import __version__
-        print(f"X3r0Day API Sniffer v{__version__}")
-        sys.exit(0)
-
     if UP_PROXY_FLAG in sys.argv[1:]:
         os.environ[UP_PROXY_ENV] = "1"
     if not prompt_start_mode():
