@@ -3,8 +3,13 @@ FROM python:3.11-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends git && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir uv
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock .python-version ./
+ENV UV_PYTHON=3.11
+RUN uv sync --locked
 
 
 FROM python:3.11-slim AS runtime
@@ -14,14 +19,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
 
 RUN groupadd -r sniffer && useradd -r -g sniffer -m -d /home/sniffer sniffer
 
-COPY --from=builder /root/.local /home/sniffer/.local
-COPY --from=builder /usr/local /usr/local
-
 WORKDIR /app
 
+COPY --from=builder /app/.venv /opt/venv
 COPY --chown=sniffer:sniffer . .
 
-ENV PATH=/home/sniffer/.local/bin:$PATH
+ENV PATH=/opt/venv/bin:$PATH
 ENV PYTHONUNBUFFERED=1
 
 USER sniffer

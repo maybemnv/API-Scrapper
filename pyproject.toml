@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=64"]
-build-backend = "etuptools.build_meta or setuptools.build_meta:__legacy__"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "x3r0day-api-sniffer"
@@ -11,6 +11,9 @@ authors = [{ name = "XeroDay" }]
 license = { text = "MIT" }
 requires-python = ">=3.8"
 dependencies = ["requests", "rich"]
+
+[dependency-groups]
+dev = ["bandit", "mypy", "pytest", "pytest-cov", "ruff"]
 
 [project.urls]
 Repository = "https://github.com/maybemnv/API-Scrapper"
@@ -26,7 +29,7 @@ select = ["E", "F", "I", "N", "W", "UP"]
 quote-style = "double"
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.11"
 strict = true
 ignore_missing_imports = true
 warn_unused_ignores = true
@@ -38,3 +41,6 @@ strict = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.uv]
+package = false

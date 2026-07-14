@@ -21,12 +21,12 @@
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| 2.1 | `pyproject.toml` with project metadata | ❌ | Modern Python packaging |
+| 2.1 | `pyproject.toml` with project metadata | ✅ | Modern Python packaging |
 | 2.2 | `setup.cfg` or `setup.py` fallback | ❌ | For legacy pip compatibility |
 | 2.3 | Version string (`__version__` in package `__init__.py`) | ❌ | Single source of truth |
-| 2.4 | Lockfile (`requirements.lock` or `pip freeze` snapshot) | ❌ | Deterministic installs |
-| 2.5 | Dockerfile (multi-stage, slim image) | ❌ | Reproducible deployment |
-| 2.6 | `.dockerignore` | ❌ | Exclude dev artifacts from image |
+| 2.4 | Lockfile (`requirements.lock` or `pip freeze` snapshot) | ✅ | Deterministic installs |
+| 2.5 | Dockerfile (multi-stage, slim image) | ✅ | Reproducible deployment |
+| 2.6 | `.dockerignore` | ✅ | Exclude dev artifacts from image |
 | 2.7 | Docker Compose for local dev (optional) | ❌ | Quick start for contributors |
 | 2.8 | Python version classifier in `pyproject.toml` | ❌ | Currently implicit >= 3.8 |
 
@@ -41,7 +41,7 @@
 | 3.5 | GitHub Actions: Docker image build + push | ❌ | ghcr.io registry |
 | 3.6 | GitHub Actions: security scan (bandit / trufflehog) | ❌ | SAST for secret leaks |
 | 3.7 | Dependabot / Renovate for dependency updates | ❌ | Automated maintenance |
-| 3.8 | Pre-commit hook config (`.pre-commit-config.yaml`) | ❌ | Local quality gates |
+| 3.8 | Pre-commit hook config (`.pre-commit-config.yaml`) | ✅ | Local quality gates |
 
 ## 4. Code Quality & Linting
 

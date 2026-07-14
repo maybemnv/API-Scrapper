@@ -2,10 +2,10 @@
 
 ## Quick start
 ```powershell
-pip install -r requirements.txt
+uv sync --group dev
 $env:GROQ_API_KEY="gsk_..."
-python main.py              # Enter = AI workflow, type "Manual" for numbered menu
-python src/AISearch.py --query "show all keys"   # one-shot query
+uv run python main.py              # Enter = AI workflow, type "Manual" for numbered menu
+uv run python src/AISearch.py --query "show all keys"   # one-shot query
 ```
 
 ## Entrypoints
@@ -29,10 +29,10 @@ config/ai_policy.json  — LLM config + workflow routing prompts (Groq, llama-3.
 
 ## Key conventions & quirks
 
-### No tests / no CI / no packaging
-- Zero tests. No test framework installed. `.gitignore` explicitly ignores `tests/`.
-- No `pyproject.toml`, `setup.py`, or `setup.cfg`. Pure `requirements.txt` (requests, rich).
-- No CI/CD, no Docker, no linter config.
+### Tests / CI / packaging
+- Tests live in `tests/` and run with `uv run pytest tests/ -v`.
+- Dependencies live in `pyproject.toml` + `uv.lock`; use `uv sync` for local setup.
+- GitHub Actions covers linting, type-checking, tests, Docker, and security scans.
 
 ### C extension auto-build
 - `src/shared/scanner_matcher.py` tries to compile `fast_scanner.c` → `fast_scanner.so` at import time (needs gcc + libpcre2-8 + pkg-config). Falls back to pure Python if unavailable. Not tracked in git.
