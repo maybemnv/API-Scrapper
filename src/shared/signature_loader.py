@@ -1,9 +1,7 @@
 import json
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Pattern
-
-import re
-
 
 ROOT = Path(__file__).resolve().parents[2]
 DEF_PATH = ROOT / "data" / "signatures.json"

@@ -9,7 +9,7 @@ import threading
 from typing import Optional
 
 from . import scanner_state as state
-from .scanner_io import dump_json_safely, repo_identity, write_json_snapshot
+from .scanner_io import repo_identity, write_json_snapshot
 from .scanner_ui import bump_score, log_msg
 
 
@@ -26,7 +26,7 @@ def queue_manual_target(repo_data: dict) -> bool:
         current_queue: list = []
         if os.path.exists(state.QUEUE_JSON):
             try:
-                with open(state.QUEUE_JSON, "r", encoding="utf-8") as fh:
+                with open(state.QUEUE_JSON, encoding="utf-8") as fh:
                     current_queue = json.load(fh)
             except Exception:
                 current_queue = []
@@ -69,8 +69,9 @@ def handle_target_prompt(prompt_text: str) -> None:
 
     log_msg("[bold cyan][AI] Parsing repository targets from prompt...[/]")
 
-    from shared.scanner_targets import resolve_repo_targets
     from shared.ai_policy import load_pol
+    from shared.scanner_targets import resolve_repo_targets
+
     repo_targets = resolve_repo_targets(
         cleaned,
         os.environ.get("GROQ_API_KEY", "").strip(),

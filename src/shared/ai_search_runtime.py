@@ -1,7 +1,7 @@
 import json
 import os
 from collections import Counter
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from rich.console import Console
 from rich.panel import Panel
@@ -12,7 +12,6 @@ from .ai_client import ask_json, ask_text, build_msgs, get_key, remember_exchang
 from .ai_policy import fill_tpl, load_pol
 from .api_signatures import API_SIGNATURE_CATEGORIES
 from .category_routing import infer_categories_from_query, is_summary_query, normalize_categories
-
 
 LEAKS_JSON = "leaked_keys.json"
 AVAILABLE_CATEGORIES = list(API_SIGNATURE_CATEGORIES)
@@ -58,7 +57,7 @@ def load_database(console: Console) -> list:
         return []
 
     try:
-        with open(LEAKS_JSON, "r", encoding="utf-8") as file_ptr:
+        with open(LEAKS_JSON, encoding="utf-8") as file_ptr:
             raw_data = json.load(file_ptr)
             if not isinstance(raw_data, list):
                 raise ValueError("Database file does not contain a JSON list.")
@@ -92,6 +91,19 @@ def normalize_terms(raw_terms: Any) -> List[str]:
     return cleaned_terms
 
 
+def string_list(value: object) -> List[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value]
+
+
+def int_value(value: object, default: int) -> int:
+    try:
+        return int(cast(Any, value))
+    except (TypeError, ValueError):
+        return default
+
+
 def clamp_limit(raw_value: Any, default: int, max_limit: int) -> int:
     try:
         limit_value = int(raw_value)
@@ -119,7 +131,9 @@ def _q_cfg(pol: Dict[str, Any]) -> Dict[str, Any]:
 def normalize_query_plan(ai_instructions: dict, pol: Dict[str, Any]) -> Dict[str, object]:
     cfg = _q_cfg(pol)
     understanding = str(ai_instructions.get("understanding", "")).strip() if isinstance(ai_instructions, dict) else ""
-    intent = str(ai_instructions.get("intent", "search")).strip().lower() if isinstance(ai_instructions, dict) else "search"
+    intent = (
+        str(ai_instructions.get("intent", "search")).strip().lower() if isinstance(ai_instructions, dict) else "search"
+    )
     if intent not in cfg["intents"]:
         intent = "search"
 
@@ -135,8 +149,12 @@ def normalize_query_plan(ai_instructions: dict, pol: Dict[str, Any]) -> Dict[str
         "understanding": understanding,
         "intent": intent,
         "target_categories": normalize_categories([str(category) for category in raw_categories]),
-        "repo_terms": normalize_terms(ai_instructions.get("repo_terms", []) if isinstance(ai_instructions, dict) else []),
-        "file_terms": normalize_terms(ai_instructions.get("file_terms", []) if isinstance(ai_instructions, dict) else []),
+        "repo_terms": normalize_terms(
+            ai_instructions.get("repo_terms", []) if isinstance(ai_instructions, dict) else []
+        ),
+        "file_terms": normalize_terms(
+            ai_instructions.get("file_terms", []) if isinstance(ai_instructions, dict) else []
+        ),
         "origin": origin,
         "limit": clamp_limit(
             ai_instructions.get("limit", cfg["lim_def"]) if isinstance(ai_instructions, dict) else cfg["lim_def"],
@@ -190,9 +208,9 @@ def mask_secret(secret_value: str) -> str:
 
 def build_scope_text(query_plan: Dict[str, object]) -> str:
     scope_parts = []
-    target_categories = query_plan.get("target_categories", [])
-    repo_terms = query_plan.get("repo_terms", [])
-    file_terms = query_plan.get("file_terms", [])
+    target_categories = string_list(query_plan.get("target_categories", []))
+    repo_terms = string_list(query_plan.get("repo_terms", []))
+    file_terms = string_list(query_plan.get("file_terms", []))
     origin = query_plan.get("origin", "any")
 
     if target_categories:
@@ -226,9 +244,9 @@ def matches_terms(value: str, terms: List[str]) -> bool:
 
 
 def collect_matches(query_plan: Dict[str, object], db_data: list) -> List[Dict[str, str]]:
-    category_set = set(query_plan.get("target_categories", []))
-    repo_terms = query_plan.get("repo_terms", [])
-    file_terms = query_plan.get("file_terms", [])
+    category_set = set(string_list(query_plan.get("target_categories", [])))
+    repo_terms = string_list(query_plan.get("repo_terms", []))
+    file_terms = string_list(query_plan.get("file_terms", []))
     origin_filter = query_plan.get("origin", "any")
     collected = []
 
@@ -269,7 +287,10 @@ def collect_matches(query_plan: Dict[str, object], db_data: list) -> List[Dict[s
                 }
             )
 
-    return sorted(collected, key=lambda match: (match["repo"].lower(), match["type"].lower(), match["file"].lower(), match["line"]))
+    return sorted(
+        collected,
+        key=lambda match: (match["repo"].lower(), match["type"].lower(), match["file"].lower(), match["line"]),
+    )
 
 
 def build_result_context(query_plan: Dict[str, object], matches: List[Dict[str, str]]) -> Dict[str, object]:
@@ -322,16 +343,18 @@ def ask_ai_for_result_summary(
 
 
 def fallback_summary_text(user_query: str, query_plan: Dict[str, object], matches: List[Dict[str, str]]) -> str:
-    categories = query_plan.get("target_categories", [])
+    categories = string_list(query_plan.get("target_categories", []))
     if categories:
         scope_label = ", ".join(categories)
     else:
         scope_label = "all tracked findings"
 
-    if query_plan.get("repo_terms"):
-        scope_label += f" in repos matching {', '.join(query_plan['repo_terms'])}"
-    if query_plan.get("file_terms"):
-        scope_label += f" with files matching {', '.join(query_plan['file_terms'])}"
+    repo_terms = string_list(query_plan.get("repo_terms", []))
+    file_terms = string_list(query_plan.get("file_terms", []))
+    if repo_terms:
+        scope_label += f" in repos matching {', '.join(repo_terms)}"
+    if file_terms:
+        scope_label += f" with files matching {', '.join(file_terms)}"
     if query_plan.get("origin") == "commit":
         scope_label += " from commit history"
     elif query_plan.get("origin") == "repo_file":
@@ -352,7 +375,8 @@ def search_and_display(query_plan: Dict[str, object], matches: List[Dict[str, st
     table.add_column("Secret / Key", style="red", overflow="fold", ratio=4)
     table.add_column("File / Origin", style="dim", overflow="fold", ratio=2)
 
-    limited_matches = matches[: int(query_plan.get("limit", 50))]
+    limit_value = int_value(query_plan.get("limit", 50), 50)
+    limited_matches = matches[:limit_value]
     for match in limited_matches:
         table.add_row(match["repo"], match["type"], match["secret"], match["file"])
 
@@ -362,14 +386,19 @@ def search_and_display(query_plan: Dict[str, object], matches: List[Dict[str, st
         repo_label = "repository" if repo_count == 1 else "repositories"
         console.print(table)
         if len(matches) > len(limited_matches):
-            console.print(f"[dim]Showing {len(limited_matches)} of {len(matches)} total matches based on the AI-selected limit.[/]")
+            console.print(
+                f"[dim]Showing {len(limited_matches)} of {len(matches)} total matches "
+                "based on the AI-selected limit.[/]"
+            )
         console.print(
             f"[bold green]Successfully pulled {len(matches)} matching {finding_label} "
             f"across {repo_count} {repo_label} from the local database.[/]\n"
         )
         return
 
-    console.print("[bold yellow][!] Search finished. 0 records found in the local database for the AI-selected filters.[/]\n")
+    console.print(
+        "[bold yellow][!] Search finished. 0 records found in the local database for the AI-selected filters.[/]\n"
+    )
 
 
 def display_summary(query_plan: Dict[str, object], matches: List[Dict[str, str]], console: Console) -> None:
@@ -378,7 +407,8 @@ def display_summary(query_plan: Dict[str, object], matches: List[Dict[str, str]]
     repo_count = len({match["repo"] for match in matches})
     type_counts = Counter(match["type"] for match in matches)
     repo_counts = Counter(match["repo"] for match in matches)
-    scoped_category_count = len(query_plan.get("target_categories", [])) or len(AVAILABLE_CATEGORIES)
+    scoped_categories = string_list(query_plan.get("target_categories", []))
+    scoped_category_count = len(scoped_categories) or len(AVAILABLE_CATEGORIES)
 
     summary_table = Table(title="[bold cyan]API Sniffer Summary[/]", border_style="cyan", expand=False)
     summary_table.add_column("Metric", style="yellow")
@@ -432,7 +462,9 @@ def process_query(
             console.print(f"[bold yellow][!] AI summary fallback engaged: {error}[/]")
             ai_summary = ""
 
-    understanding = ai_summary or query_plan.get("understanding") or fallback_summary_text(cleaned_input, query_plan, matches)
+    understanding = (
+        ai_summary or query_plan.get("understanding") or fallback_summary_text(cleaned_input, query_plan, matches)
+    )
     console.print(f"[bold green]AI:[/] {understanding}")
     remember_exchange(history, cleaned_input, json.dumps({"query_plan": query_plan, "reply": understanding}))
 

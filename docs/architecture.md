@@ -17,9 +17,9 @@
        ▼                               ▼
 ┌─────────────────────────────────────────────────┐
 │              Subprocess Launcher                │
-│  python src/APISniffer.py [flags]               │
-│  python src/APIScanner.py [flags]               │
-│  python src/AISearch.py [--query "..."]         │
+│  uv run python src/APISniffer.py [flags]        │
+│  uv run python src/APIScanner.py [flags]        │
+│  uv run python src/AISearch.py [--query "..."]  │
 └─────────────────────────────────────────────────┘
 ```
 

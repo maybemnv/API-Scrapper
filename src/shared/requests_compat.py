@@ -1,6 +1,5 @@
 import warnings
 
-
 warnings.filterwarnings(
     "ignore",
     message=r".*doesn't match a supported version.*",
@@ -9,4 +8,3 @@ warnings.filterwarnings(
 )
 
 import requests as requests  # noqa: E402
-

@@ -27,7 +27,7 @@ The project is organized around discovery, scanning, and querying, with an AI-fi
 API Sniffer supports two operating modes:
 
 1. **AI workflow orchestration** via `AIWorkflow.py`, where natural-language requests are routed into discovery, scanning, direct database querying, or chained workflows.
-2. **Manual execution** via `main.py`, which exposes a control center for running each stage or the full pipeline.
+2. **Manual execution** via `uv run main.py`, which exposes a control center for running each stage or the full pipeline.
 
 The core pipeline is:
 
@@ -128,7 +128,9 @@ API Sniffer/
 │       ├── scanner_matcher.py      # Regex matching and finding extraction
 │       ├── scanner_targets.py      # Repo target extraction from prompts/URLs
 │       └── signature_loader.py     # Loads signatures.json -> compiled regex
-├── requirements.txt
+├── pyproject.toml                  # Project metadata + dependency groups
+├── uv.lock                         # Locked dependency resolution
+├── .python-version                 # Local default Python for uv
 ├── live_proxies.txt                # Optional proxy list to bypass rate limits
 └── README.md
 ```
@@ -151,12 +153,12 @@ Optional local input file:
 ## Requirements
 
 - Python 3.8 or later
-- The packages listed in `requirements.txt`
+- `uv`
 
 Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+uv sync --group dev
 ```
 
 ---
@@ -166,7 +168,7 @@ pip install -r requirements.txt
 ### Unified Launcher (Recommended)
 
 ```bash
-python main.py
+uv run python main.py
 ```
 
 This opens the launcher. From there:
@@ -179,7 +181,7 @@ This opens the launcher. From there:
 
 The AI workflow is the fastest way to run the tool because it understands natural language and chains the right stages for you.
 
-1. Start the launcher with `python main.py`.
+1. Start the launcher with `uv run python main.py`.
 2. At the launch screen, press `Enter` to go into the AI workflow.
 3. When prompted, describe what you want in plain English.
 4. The workflow will plan the steps (discovery, scanning, query) and run them in order.
@@ -195,12 +197,12 @@ Examples you can type:
 Notes:
 1. If your request is only about existing results (like “show all API keys”), it skips discovery and scanning and just queries the local database.
 2. For larger runs, setting `GITHUB_TOKEN` (or `GH_TOKEN`) helps avoid GitHub rate limits.
-3. If you want the scanner to persist proxy pruning, launch with `python main.py --up-proxy`.
+3. If you want the scanner to persist proxy pruning, launch with `uv run python main.py --up-proxy`.
 
 ### AI Workflow Orchestrator
 
 ```bash
-python src/AIWorkflow.py
+uv run python src/AIWorkflow.py
 ```
 
 This prompts for a natural-language request, routes it using `config/ai_policy.json`, and runs the required stages in sequence. It uses Groq's OpenAI-compatible API (default model is configured in `config/ai_policy.json`).
@@ -208,7 +210,7 @@ This prompts for a natural-language request, routes it using `config/ai_policy.j
 ### Stage 1: Discover Repositories
 
 ```bash
-python src/APISniffer.py
+uv run python src/APISniffer.py
 ```
 
 CLI flags:
@@ -225,7 +227,7 @@ Discovery queries GitHub for recently created repositories and writes fresh entr
 ### Stage 2: Scan for Leaked Secrets
 
 ```bash
-python src/APIScanner.py
+uv run python src/APIScanner.py
 ```
 
 CLI flags:
@@ -250,13 +252,13 @@ If you are scanning at scale, set `GITHUB_TOKEN` (or `GH_TOKEN`) in your environ
 ### Stage 3: Query the Database
 
 ```bash
-python src/AISearch.py
+uv run python src/AISearch.py
 ```
 
 One-shot query:
 
 ```bash
-python src/AISearch.py --query "Show all AWS keys"
+uv run python src/AISearch.py --query "Show all AWS keys"
 ```
 
 ---
@@ -272,7 +274,7 @@ All network-facing scripts support HTTP proxy rotation. Create a file named `liv
 ```
 
 Proxies are used as a fallback when direct GitHub requests are rate-limited or blocked.
-By default the scanner does not rewrite your proxy list. If you want it to prune dead proxies and persist only the working ones, run the launcher with `python main.py --up-proxy` (or run the scanner directly with `python src/APIScanner.py --up-proxy`).
+By default the scanner does not rewrite your proxy list. If you want it to prune dead proxies and persist only the working ones, run the launcher with `uv run python main.py --up-proxy` (or run the scanner directly with `uv run python src/APIScanner.py --up-proxy`).
 
 ---
 

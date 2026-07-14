@@ -8,11 +8,10 @@ from typing import List, Optional
 from . import scanner_state as state
 
 
-
 def read_proxies(filepath: Optional[str] = None) -> List[str]:
     filepath = filepath or state.PROXY_LIST_TXT
     try:
-        with open(filepath, "r", encoding="utf-8") as fh:
+        with open(filepath, encoding="utf-8") as fh:
             return [line.strip() for line in fh if line.strip()]
     except FileNotFoundError:
         return []

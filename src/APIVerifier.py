@@ -1,21 +1,20 @@
+import concurrent.futures
 import json
 import os
 import time
-import requests
-import concurrent.futures
 from pathlib import Path
+from typing import Any, Dict
+
+import requests
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 LEAKED_KEYS_FILE = str(ROOT_DIR / "leaked_keys.json")
 VERIFIED_KEYS_FILE = str(ROOT_DIR / "verified_keys.json")
 
+
 def verify_claude(api_key: str) -> bool:
     url = "https://api.anthropic.com/v1/messages"
-    headers = {
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json"
-    }
+    headers = {"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
     try:
         r = requests.post(url, headers=headers, json={}, timeout=10)
         res = r.json()
@@ -25,6 +24,7 @@ def verify_claude(api_key: str) -> bool:
     except Exception as e:
         print(f"Error testing Claude key: {e}")
         return False
+
 
 def verify_google(api_key: str) -> bool:
     # tries generative language API first, real keys might be for maps tho
@@ -41,31 +41,37 @@ def verify_google(api_key: str) -> bool:
         print(f"Error testing Google key: {e}")
         return False
 
+
 def verify_generic(api_key: str, provider: str) -> bool:
-    configs = {
+    configs: Dict[str, Dict[str, Any]] = {
         "openai": {"url": "https://api.openai.com/v1/models", "prefix": "Bearer", "method": "GET"},
         "groq": {"url": "https://api.groq.com/openai/v1/models", "prefix": "Bearer", "method": "GET"},
         "mistral": {"url": "https://api.mistral.ai/v1/models", "prefix": "Bearer", "method": "GET"},
         "huggingface": {"url": "https://huggingface.co/api/whoami-v2", "prefix": "Bearer", "method": "GET"},
         "replicate": {"url": "https://api.replicate.com/v1/models", "prefix": "Token", "method": "GET"},
-        "perplexity": {"url": "https://api.perplexity.ai/chat/completions", "prefix": "Bearer", "method": "POST", "body": {}},
+        "perplexity": {
+            "url": "https://api.perplexity.ai/chat/completions",
+            "prefix": "Bearer",
+            "method": "POST",
+            "body": {},
+        },
         "cohere": {"url": "https://api.cohere.ai/v1/models", "prefix": "Bearer", "method": "GET"},
         "together": {"url": "https://api.together.xyz/v1/models", "prefix": "Bearer", "method": "GET"},
         "openrouter": {"url": "https://openrouter.ai/api/v1/auth/key", "prefix": "Bearer", "method": "GET"},
         "xai": {"url": "https://api.x.ai/v1/models", "prefix": "Bearer", "method": "GET"},
-        "cerebras": {"url": "https://api.cerebras.ai/v1/models", "prefix": "Bearer", "method": "GET"}
+        "cerebras": {"url": "https://api.cerebras.ai/v1/models", "prefix": "Bearer", "method": "GET"},
     }
     cfg = configs.get(provider)
     if not cfg:
         return False
-    
+
     headers = {"Authorization": f"{cfg['prefix']} {api_key}"}
     try:
         if cfg["method"] == "GET":
             r = requests.get(cfg["url"], headers=headers, timeout=10)
         else:
             r = requests.post(cfg["url"], headers=headers, json=cfg.get("body", {}), timeout=10)
-            
+
         if r.status_code in (401, 403):
             return False
         return True
@@ -77,7 +83,7 @@ def verify_generic(api_key: str, provider: str) -> bool:
 def process_repo(repo_entry: dict):
     repo_name = repo_entry.get("repo", "Unknown")
     findings = repo_entry.get("findings", [])
-    
+
     verified_findings = []
     valid_count = 0
     discarded_count = 0
@@ -86,10 +92,12 @@ def process_repo(repo_entry: dict):
     for finding in findings:
         secret = finding.get("secret", "").strip()
         category = str(finding.get("type", "")).lower()
-        
+
         is_claude = secret.startswith("sk-ant-api") or "claude" in category or "anthropic" in category
         is_google = secret.startswith("AIzaSy") or "google" in category
-        is_openai = secret.startswith("sk-proj") or secret.startswith("sk-svc") or "openai" in category or "chatgpt" in category
+        is_openai = (
+            secret.startswith("sk-proj") or secret.startswith("sk-svc") or "openai" in category or "chatgpt" in category
+        )
         is_groq = secret.startswith("gsk_") or "groq" in category
         is_hf = secret.startswith("hf_") or "huggingface" in category
         is_replicate = secret.startswith("r8_") or "replicate" in category
@@ -103,7 +111,7 @@ def process_repo(repo_entry: dict):
 
         is_valid = False
         tested_provider = None
-        
+
         if is_claude:
             tested_provider = "Claude"
             is_valid = verify_claude(secret)
@@ -143,7 +151,7 @@ def process_repo(repo_entry: dict):
         elif is_cerebras:
             tested_provider = "Cerebras"
             is_valid = verify_generic(secret, "cerebras")
-            
+
         if tested_provider:
             print(f"[~] Testing {tested_provider} key: {secret[:12]}...")
             if is_valid:
@@ -156,9 +164,9 @@ def process_repo(repo_entry: dict):
                 discarded_count += 1
         else:
             unhandled_count += 1
-            
+
         time.sleep(0.5)
-        
+
     if verified_findings:
         new_repo_entry = dict(repo_entry)
         new_repo_entry["findings"] = verified_findings
@@ -166,13 +174,14 @@ def process_repo(repo_entry: dict):
         return new_repo_entry, valid_count, discarded_count, unhandled_count
     return None, valid_count, discarded_count, unhandled_count
 
+
 def main():
     if not os.path.exists(LEAKED_KEYS_FILE):
         print(f"[-] No {LEAKED_KEYS_FILE} found.")
         return
 
     print("[*] Starting API Key Verifier (Universal AI Mode)...")
-    with open(LEAKED_KEYS_FILE, "r", encoding="utf-8") as f:
+    with open(LEAKED_KEYS_FILE, encoding="utf-8") as f:
         try:
             leaked_data = json.load(f)
         except json.JSONDecodeError:
@@ -209,6 +218,7 @@ def main():
 
     print(f"[+] Wrote {len(verified_only)} verified repo(s) to {VERIFIED_KEYS_FILE}.")
     print(f"[*] Original {LEAKED_KEYS_FILE} left untouched — unverified keys preserved for AISearch.")
+
 
 if __name__ == "__main__":
     main()

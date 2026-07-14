@@ -6,9 +6,7 @@
 # ---------------------------------------------------------------------------------- #
 
 
-############################################################################################################################
-#      So This code basically uses an LLM to To basically handle all the workflow which you had to do manually before      #
-############################################################################################################################
+# AI workflow orchestration for discovery, scanning, and local result queries.
 
 
 # ---------------------------------------------------------------------------------- #
@@ -39,32 +37,34 @@
 # ---------------------------------------------------------------------------------- #
 
 
-
-
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.table import Table
+
 from shared.ai_client import ask_json, build_msgs, get_key, remember_exchange
 from shared.ai_policy import fill_tpl, load_pol
 from shared.ai_search_runtime import run_single_query
 
-
+_termios: Any
 try:
-    import termios
+    import termios as _termios
 except ImportError:
-    termios = None
+    _termios = None
+
+termios: Any = _termios
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT_DIR / "src"
-POL = {}
+POL: Dict[str, Any] = {}
 
 console = Console()
 
@@ -175,7 +175,7 @@ def _norm_param(val: Any, cfg: Dict[str, Any]) -> Any:
     if "min" in cfg or "max" in cfg:
         return clamp_int(val, cfg.get("default", cfg.get("min", 1)), cfg.get("min", 1), cfg.get("max", 1))
     if isinstance(cfg.get("default"), bool):
-        return normalize_bool(val, cfg.get("default"))
+        return normalize_bool(val, cast(bool, cfg.get("default")))
     return cfg.get("default") if val is None else val
 
 
@@ -198,7 +198,8 @@ def normalize_plan(raw_plan: Dict[str, Any], pol: Dict[str, Any]) -> Dict[str, A
         steps_out.append({"action": act, "params": norm_params})
 
     return {
-        "understanding": str(raw_plan.get("understanding", "Generated workflow plan.")).strip() or "Generated workflow plan.",
+        "understanding": str(raw_plan.get("understanding", "Generated workflow plan.")).strip()
+        or "Generated workflow plan.",
         "steps": steps_out,
     }
 
@@ -334,7 +335,7 @@ def main() -> None:
             border_style="magenta",
         )
     )
-    console.print("[dim]Describe the job you want. Example: start scanning, run discovery for 3 minutes, or show all the API keys.[/]\n")
+    console.print("[dim]Describe the job you want. Example: start scanning or show all API keys.[/]\n")
 
     POL = load_pol(log_fn=console.print)
     if not POL:

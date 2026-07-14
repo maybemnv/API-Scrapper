@@ -4,7 +4,6 @@ from typing import Dict, Iterable, List, Set
 
 from .api_signatures import API_SIGNATURE_CATEGORIES
 
-
 NOISE_TOKENS = {
     "access",
     "anon",
@@ -36,9 +35,39 @@ NOISE_TOKENS = {
 }
 
 TOPIC_TERMS = {
-    "ai": ("ai", "llm", "model", "models", "openai", "anthropic", "groq", "xai", "grok", "openrouter", "huggingface", "replicate", "cerebras", "google", "gcp"),
+    "ai": (
+        "ai",
+        "llm",
+        "model",
+        "models",
+        "openai",
+        "anthropic",
+        "groq",
+        "xai",
+        "grok",
+        "openrouter",
+        "huggingface",
+        "replicate",
+        "cerebras",
+        "google",
+        "gcp",
+    ),
     "cloud": ("cloud", "aws", "gcp", "google", "digitalocean", "heroku", "databricks"),
-    "database": ("database", "databases", "db", "backend", "backends", "supabase", "firebase", "planetscale", "airtable", "appwrite", "deta", "pocketbase", "databricks"),
+    "database": (
+        "database",
+        "databases",
+        "db",
+        "backend",
+        "backends",
+        "supabase",
+        "firebase",
+        "planetscale",
+        "airtable",
+        "appwrite",
+        "deta",
+        "pocketbase",
+        "databricks",
+    ),
     "source_control": ("git", "github", "gitlab", "source control", "source-control"),
     "package": ("package", "packages", "registry", "registries", "npm", "pypi"),
     "communication": ("communication", "chat", "messaging", "discord", "slack", "telegram", "webhook", "webhooks"),
@@ -101,15 +130,12 @@ def query_contains_term(query_text: str, term: str) -> bool:
 
 def normalize_categories(categories: Iterable[str]) -> List[str]:
     unique_categories = {category for category in categories if category in CATEGORY_ORDER}
-    return sorted(unique_categories, key=CATEGORY_ORDER.get)
+    return sorted(unique_categories, key=lambda category: CATEGORY_ORDER[category])
 
 
 @lru_cache(maxsize=1)
 def _topic_token_map() -> Dict[str, Set[str]]:
-    return {
-        topic: {token for term in terms for token in tokenize_text(term)}
-        for topic, terms in TOPIC_TERMS.items()
-    }
+    return {topic: {token for term in terms for token in tokenize_text(term)} for topic, terms in TOPIC_TERMS.items()}
 
 
 @lru_cache(maxsize=1)
@@ -123,11 +149,7 @@ def _category_topic_map() -> Dict[str, Set[str]]:
     category_topics: Dict[str, Set[str]] = {}
 
     for category, category_tokens in _category_token_map().items():
-        category_topics[category] = {
-            topic
-            for topic, tokens in topic_tokens.items()
-            if category_tokens & tokens
-        }
+        category_topics[category] = {topic for topic, tokens in topic_tokens.items() if category_tokens & tokens}
 
     return category_topics
 

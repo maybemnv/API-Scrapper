@@ -11,12 +11,12 @@ import tarfile
 import tempfile
 import time
 import zipfile
-from typing import List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
+
+from shared.scanner_matcher import regex_grep_text as _regex_grep
 
 from . import scanner_state as state
-from shared.scanner_matcher import regex_grep_text as _regex_grep
 from .scanner_network import (
-    ScanInterrupted,
     check_pause,
     download_github_url,
     raise_if_exit_requested,
@@ -32,11 +32,13 @@ def should_scan_filename(path: str) -> Tuple[bool, str]:
 
 
 def scan_zip_bytes(
-    zip_buffer: bytes, thread_tag: str, active_ip: str,
-    api_signatures: dict,
-) -> Tuple[List[dict], Optional[str]]:
-    caught = []
-    last_ui = 0
+    zip_buffer: bytes,
+    thread_tag: str,
+    active_ip: str,
+    api_signatures: Dict[str, Any],
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    caught: List[Dict[str, Any]] = []
+    last_ui = 0.0
     total_bytes = 0
 
     with zipfile.ZipFile(io.BytesIO(zip_buffer)) as zf:
@@ -69,11 +71,13 @@ def scan_zip_bytes(
 
 
 def scan_tar_bytes(
-    tar_buffer: bytes, thread_tag: str, active_ip: str,
-    api_signatures: dict,
-) -> Tuple[List[dict], Optional[str]]:
-    caught = []
-    last_ui = 0
+    tar_buffer: bytes,
+    thread_tag: str,
+    active_ip: str,
+    api_signatures: Dict[str, Any],
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    caught: List[Dict[str, Any]] = []
+    last_ui = 0.0
     total_bytes = 0
 
     with tarfile.open(fileobj=io.BytesIO(tar_buffer), mode="r:*") as tf:
@@ -108,11 +112,13 @@ def scan_tar_bytes(
 
 
 def scan_repo_dir(
-    repo_dir: str, thread_tag: str, active_ip: str,
-    api_signatures: dict,
-) -> Tuple[List[dict], Optional[str]]:
-    caught = []
-    last_ui = 0
+    repo_dir: str,
+    thread_tag: str,
+    active_ip: str,
+    api_signatures: Dict[str, Any],
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    caught: List[Dict[str, Any]] = []
+    last_ui = 0.0
     total_bytes = 0
 
     for root, dirs, files in os.walk(repo_dir):
@@ -142,7 +148,7 @@ def scan_repo_dir(
                 last_ui = time.time()
 
             try:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as fh:
+                with open(file_path, encoding="utf-8", errors="ignore") as fh:
                     raw = fh.read()
                 caught.extend(_regex_grep(raw, rel_path, api_signatures, state.LINE_CUTOFF))
             except Exception:
@@ -169,7 +175,9 @@ def is_valid_archive_bytes(payload: bytes, kind: str) -> bool:
 
 
 def clone_repo_git(
-    repo_name: str, branch: str, thread_tag: str,
+    repo_name: str,
+    branch: str,
+    thread_tag: str,
 ) -> Tuple[Optional[str], Optional[str]]:
     update_thread_board(thread_tag, action="[cyan]Cloning (git)...[/]", active_ip="git", dl_bytes=0)
     temp_dir = tempfile.mkdtemp(prefix="x3d_git_")
@@ -205,14 +213,16 @@ def build_archive_url_candidates(repo_name: str, branch: str) -> List[Tuple[str,
     """Return (label, url, kind) tuples to try in order."""
     return [
         ("ZIP (codeload)", f"https://codeload.github.com/{repo_name}/zip/refs/heads/{branch}", "zip"),
-        ("ZIP (archive)",  f"https://github.com/{repo_name}/archive/refs/heads/{branch}.zip", "zip"),
-        ("ZIP (zipball)",  f"https://api.github.com/repos/{repo_name}/zipball/{branch}", "zip"),
-        ("TAR (tarball)",  f"https://api.github.com/repos/{repo_name}/tarball/{branch}", "tar"),
+        ("ZIP (archive)", f"https://github.com/{repo_name}/archive/refs/heads/{branch}.zip", "zip"),
+        ("ZIP (zipball)", f"https://api.github.com/repos/{repo_name}/zipball/{branch}", "zip"),
+        ("TAR (tarball)", f"https://api.github.com/repos/{repo_name}/tarball/{branch}", "tar"),
     ]
 
 
 def download_repo_archive(
-    repo_name: str, branch: str, thread_tag: str,
+    repo_name: str,
+    branch: str,
+    thread_tag: str,
 ) -> Tuple[Optional[bytes], Optional[str], str]:
     for label, url, kind in build_archive_url_candidates(repo_name, branch):
         payload, current_ip = download_github_url(url, thread_tag, f"Downloading {label}")

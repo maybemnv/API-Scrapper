@@ -2,7 +2,7 @@
 
 ## Setup
 ```bash
-pip install -r requirements.txt
+uv sync --group dev
 ```
 
 ## Code Standards
@@ -19,7 +19,7 @@ pip install -r requirements.txt
 
 ## Testing
 ```bash
-pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 ## Security

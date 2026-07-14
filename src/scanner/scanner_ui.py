@@ -32,11 +32,9 @@ def update_thread_board(
             slot["dl_bytes"] = dl_bytes
 
 
-
 def bump_score(metric: str, step: int = 1) -> None:
     with state.ui_mutex:
         state.scoreboard[metric] += step
-
 
 
 def log_msg(msg: str) -> None:
@@ -46,9 +44,7 @@ def log_msg(msg: str) -> None:
 
 def log_dead_repo(target: str, crash_reason: str, ip: str, elapsed: float) -> None:
     with state.ui_mutex:
-        state.fail_history.append(
-            f"[red]{target}[/] - [dim]{crash_reason} ({elapsed}s via {ip})[/]"
-        )
+        state.fail_history.append(f"[red]{target}[/] - [dim]{crash_reason} ({elapsed}s via {ip})[/]")
 
 
 def log_loot(
@@ -71,11 +67,9 @@ def log_loot(
         )
 
 
-
 def toggle_pause() -> None:
-    from .scanner_proxy import read_proxies, set_active_proxies  # local import
     assert state.pause_event is not None
-    if state.pause_event.is_set(): # type: ignore[union-attr]
+    if state.pause_event.is_set():
         state.pause_event.clear()
         log_msg("[bold yellow][!] ⏸ PAUSE INITIATED: Halting all threads...[/]")
         with state.ui_mutex:
@@ -84,9 +78,7 @@ def toggle_pause() -> None:
                     slot["action"] = "[bold red]⏸ PAUSED[/]"
     else:
         from . import scanner_proxy as _px
+
         _px.set_active_proxies(_px.read_proxies())
-        log_msg(
-            f"[bold green][▶] RESUMED: Reloaded {len(_px.get_active_proxies())} proxies "
-            "and unfreezing threads.[/]"
-        )
+        log_msg(f"[bold green][▶] RESUMED: Reloaded {len(_px.get_active_proxies())} proxies and unfreezing threads.[/]")
         state.pause_event.set()

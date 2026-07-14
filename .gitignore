@@ -13,7 +13,6 @@ __pycache__/
 *.so
 *.o
 
-# Misc
-KnownIssue.txt
 .env
-docs/PRs/
+.venv/
+.coverage

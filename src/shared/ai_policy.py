@@ -4,7 +4,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-
 ROOT = Path(__file__).resolve().parents[2]
 DEF_PATH = ROOT / "config" / "ai_policy.json"
 ENV_KEY = "AI_POLICY_PATH"

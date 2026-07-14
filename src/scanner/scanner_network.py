@@ -6,12 +6,12 @@
 import os
 import random
 import time
-from typing import List, Optional, Tuple
+from typing import Dict, Optional, Tuple
+
+from shared.requests_compat import requests
 
 from . import scanner_state as state
 from .scanner_proxy import fmt_proxy, get_active_proxies, mark_proxy_bad, mark_proxy_ok
-from shared.requests_compat import requests
-
 
 
 def get_github_token() -> Optional[str]:
@@ -22,7 +22,7 @@ def get_github_token() -> Optional[str]:
     return token or None
 
 
-def build_github_headers(token: Optional[str] = None) -> dict:
+def build_github_headers(token: Optional[str] = None) -> Dict[str, str]:
     headers = {"User-Agent": state.SPOOFED_USER_AGENT}
     token_value = token if token is not None else get_github_token()
     if token_value:
@@ -55,6 +55,7 @@ def interruptible_sleep(seconds: float) -> bool:
 
 def check_pause(thread_tag: str, current_action: str, current_ip: str) -> None:
     from .scanner_ui import update_thread_board  # local import to avoid cycle
+
     assert state.pause_event is not None
     while not state.pause_event.is_set():
         raise_if_exit_requested()
@@ -74,18 +75,21 @@ def fetch_with_progress(
     tmo: Optional[Tuple[float, float]] = None,
 ) -> bytes:
     from .scanner_ui import update_thread_board  # local import to avoid cycle
+
     if tmo is None:
         tmo = state.NET_TIMEOUTS
 
     raise_if_exit_requested()
     last_chunk_time = time.time()
     total_bytes = 0
-    last_ui_update = 0
+    last_ui_update = 0.0
 
     try:
         with requests.get(url, headers=headers, proxies=proxy_dict, timeout=tmo, stream=True) as r:
-            if r.status_code == 404: return b"NOT_FOUND"
-            if r.status_code == 429: return b"RATE_LIMITED"
+            if r.status_code == 404:
+                return b"NOT_FOUND"
+            if r.status_code == 429:
+                return b"RATE_LIMITED"
             if r.status_code == 403:
                 # GitHub rate limits often show up as 403 with remaining=0 or a retry hint.
                 # Example: X-RateLimit-Remaining=0 => treat it like 429 so proxies can try.
@@ -94,12 +98,13 @@ def fetch_with_progress(
                 if r.headers.get("Retry-After"):
                     return b"RATE_LIMITED"
                 return b"FORBIDDEN"
-            if r.status_code != 200: return f"FAILED_{r.status_code}".encode()
+            if r.status_code != 200:
+                return f"FAILED_{r.status_code}".encode()
 
             content = bytearray()
             for chunk in r.iter_content(chunk_size=32768):
                 raise_if_exit_requested()
-                if not state.pause_event.is_set(): # type: ignore[union-attr]
+                if not state.pause_event.is_set():  # type: ignore[union-attr]
                     check_pause(thread_tag, action_label, ip_str)
                     last_chunk_time = time.time()
 
@@ -122,23 +127,26 @@ def fetch_with_progress(
 
     except ScanInterrupted:
         raise
-    except requests.exceptions.ReadTimeout: return b"TIMEOUT"
-    except requests.exceptions.ChunkedEncodingError: return b"CONN_DROPPED"
-    except requests.exceptions.ConnectionError: return b"CONN_ERROR"
-    except Exception: return b"FAILED_EXC"
+    except requests.exceptions.ReadTimeout:
+        return b"TIMEOUT"
+    except requests.exceptions.ChunkedEncodingError:
+        return b"CONN_DROPPED"
+    except requests.exceptions.ConnectionError:
+        return b"CONN_ERROR"
+    except Exception:
+        return b"FAILED_EXC"
 
 
 def is_fail(val: Optional[bytes]) -> bool:
     return isinstance(val, bytes) and (
-        val in [b"FAILED", b"TIMEOUT", b"RATE_LIMITED", b"FORBIDDEN",
-                b"CONN_DROPPED", b"CONN_ERROR", b"FAILED_EXC"]
+        val in [b"FAILED", b"TIMEOUT", b"RATE_LIMITED", b"FORBIDDEN", b"CONN_DROPPED", b"CONN_ERROR", b"FAILED_EXC"]
         or val.startswith(b"FAILED")
     )
 
 
 def try_proxies(
     target_url: str,
-    http_headers: dict,
+    http_headers: Dict[str, str],
     thread_tag: str,
     action_label: str,
 ) -> Tuple[Optional[bytes], str]:
@@ -154,8 +162,13 @@ def try_proxies(
         update_thread_board(thread_tag, action="[cyan]Testing Proxy...[/]", active_ip=proxy_ip, dl_bytes=0)
         proxy_dict = fmt_proxy(proxy_ip)
         out = fetch_with_progress(
-            target_url, http_headers, proxy_dict, thread_tag, proxy_ip,
-            action_label, state.PROXY_TIMEOUTS,
+            target_url,
+            http_headers,
+            proxy_dict,
+            thread_tag,
+            proxy_ip,
+            action_label,
+            state.PROXY_TIMEOUTS,
         )
         if out == b"NOT_FOUND":
             mark_proxy_ok(proxy_ip)
@@ -166,8 +179,11 @@ def try_proxies(
         if not is_fail(out):
             mark_proxy_ok(proxy_ip)
             return out, proxy_ip
-        if out in [b"TIMEOUT", b"CONN_DROPPED", b"CONN_ERROR", b"FAILED_EXC"] or \
-                (isinstance(out, bytes) and out.startswith(b"FAILED")) or out == b"FORBIDDEN":
+        if (
+            out in [b"TIMEOUT", b"CONN_DROPPED", b"CONN_ERROR", b"FAILED_EXC"]
+            or (isinstance(out, bytes) and out.startswith(b"FAILED"))
+            or out == b"FORBIDDEN"
+        ):
             mark_proxy_bad(proxy_ip, out)
     return b"FAILED", "All Proxies Failed"
 
@@ -181,7 +197,7 @@ def download_github_url(
 
     raise_if_exit_requested()
     http_headers = build_github_headers()
-    res = b"FAILED"
+    res: Optional[bytes] = b"FAILED"
     tried_proxies = False
 
     # Prefer proxy first when requested (handy for testing).
@@ -212,7 +228,7 @@ def download_github_url(
             if not interruptible_sleep(1.5):
                 raise ScanInterrupted
             continue
-            
+
         # Retry a smaller number of times for other transient failures so one repo does not stall the queue.
         if attempt >= 1:
             break
@@ -223,11 +239,16 @@ def download_github_url(
 
     # Turn transport errors into short status text for the dashboard.
     reason_str = "Failed"
-    if res == b"RATE_LIMITED": reason_str = "Rate Limited"
-    elif res == b"FORBIDDEN": reason_str = "Forbidden (403)"
-    elif res == b"TIMEOUT": reason_str = "Timeout"
-    elif res == b"CONN_DROPPED": reason_str = "Conn Dropped"
-    elif res == b"CONN_ERROR": reason_str = "Conn Error"
+    if res == b"RATE_LIMITED":
+        reason_str = "Rate Limited"
+    elif res == b"FORBIDDEN":
+        reason_str = "Forbidden (403)"
+    elif res == b"TIMEOUT":
+        reason_str = "Timeout"
+    elif res == b"CONN_DROPPED":
+        reason_str = "Conn Dropped"
+    elif res == b"CONN_ERROR":
+        reason_str = "Conn Error"
     elif isinstance(res, bytes) and res.startswith(b"FAILED_"):
         reason_str = f"Failed ({res.split(b'_')[1].decode()})"
 

@@ -9,6 +9,7 @@ import threading
 from collections import deque
 
 from shared.api_signatures import build_api_signatures
+
 from . import scanner_state as state
 
 
@@ -37,7 +38,7 @@ def apply_runtime_overrides(args) -> None:
     if args.prefer_proxy:
         state.PREFER_PROXY = True
     if args.up_proxy:
-        state.UPDATE_PROXY_FILE  = True
+        state.UPDATE_PROXY_FILE = True
 
 
 def reset_runtime_state(api_signatures_ref: list) -> None:
@@ -53,9 +54,9 @@ def reset_runtime_state(api_signatures_ref: list) -> None:
     state.manual_target_queue = deque()
     state.manual_target_names = set()
 
-    state.available_thread_tags = deque([f"Thread-{i+1}" for i in range(state.MAX_THREADS)])
+    state.available_thread_tags = deque([f"Thread-{i + 1}" for i in range(state.MAX_THREADS)])
     state.thread_dashboard = {
-        f"Thread-{i+1}": {
+        f"Thread-{i + 1}": {
             "target": "Idle",
             "action": "-",
             "active_ip": "-",
@@ -64,7 +65,7 @@ def reset_runtime_state(api_signatures_ref: list) -> None:
         }
         for i in range(state.MAX_THREADS)
     }
-    state.log_history  = deque(maxlen=6)
+    state.log_history = deque(maxlen=6)
     state.fail_history = deque(maxlen=10)
     state.leak_history = deque(maxlen=10)
-    state.scoreboard   = {"total": 0, "scanned": 0, "leaks": 0, "clean": 0, "failed": 0, "remaining": 0}
+    state.scoreboard = {"total": 0, "scanned": 0, "leaks": 0, "clean": 0, "failed": 0, "remaining": 0}
