@@ -1,20 +1,4 @@
 #!/usr/bin/env python3
-# ---------------------------------------------------------------------------------- #
-#                            Part of the X3r0Day project.                            #
-#              You are free to use, modify, and redistribute this code,              #
-#          provided proper credit is given to the original project X3r0Day.          #
-# ---------------------------------------------------------------------------------- #
-
-"""
-Unified launcher for X3r0Day API Sniffer toolkit.
-
-This file links all stages together behind one TUI menu:
-1. Discovery (APISniffer.py)
-2. Scanner (APIScanner.py)
-3. AI Search (AISearch.py)
-4. Full pipeline
-"""
-
 from __future__ import annotations
 
 import json
