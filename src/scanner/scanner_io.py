@@ -29,34 +29,22 @@ def dump_json_safely(payload: Any, filename: str) -> None:
 
 
 def stream_json_entries(filepath: str) -> Generator[dict, None, None]:
-    # Read line-by-line (lazy) so a large result file is never fully held in
-    # memory at once. The files we write use json.dump(..., indent=4), so
-    # each top-level object starts on its own "{" line and ends on its own
-    # "}" / "}," line.
-    decoder = json.JSONDecoder()
     with open(filepath, "r", encoding="utf-8") as f:
-        buffer: list = []
-        in_object = False
-        for line in f:
-            stripped = line.strip()
-            if not in_object:
-                if stripped in ("", "[", "]", "],"):
-                    continue
-                if stripped.startswith("{"):
-                    in_object = True
-                    buffer = [line]
-                    if stripped.endswith("}") or stripped.endswith("},"):
-                        yield _parse_entry(buffer)
-                        in_object = False
-                        buffer = []
-            else:
-                buffer.append(line)
-                if stripped in ("}", "},"):
-                    yield _parse_entry(buffer)
-                    in_object = False
-                    buffer = []
-
-
-def _parse_entry(buffer: list) -> dict:
-    text = "".join(buffer).rstrip().rstrip(",")
-    return json.loads(text)
+        content = f.read()
+    decoder = json.JSONDecoder()
+    idx = 0
+    while idx < len(content):
+        while idx < len(content) and content[idx].isspace():
+            idx += 1
+        if idx >= len(content):
+            break
+        if content[idx] == "[":
+            idx += 1
+            continue
+        if content[idx] == "]":
+            break
+        obj, end = decoder.raw_decode(content, idx)
+        yield obj
+        idx = end
+        if idx < len(content) and content[idx] == ",":
+            idx += 1
