@@ -17,11 +17,15 @@ def prompt_github_token() -> None:
 
     console.print("[bold yellow][!] No GITHUB_TOKEN found. Unauthenticated requests are rate-limited to 60/hour.[/]")
     console.print("[dim]    Generate a free token at: https://github.com/settings/tokens (no scopes needed)[/]")
-    entered = Prompt.ask(
-        "[bold cyan]Enter your GitHub token (or press Enter to skip)[/]",
-        password=True,
-        default="",
-    )
+    try:
+        entered = Prompt.ask(
+            "[bold cyan]Enter your GitHub token (or press Enter to skip)[/]",
+            password=True,
+            default="",
+        )
+    except (EOFError, KeyboardInterrupt):
+        console.print("[bold yellow]    [!] Non-interactive shell — skipping token prompt (unauthenticated).[/]\n")
+        return
 
     if entered:
         os.environ["GITHUB_TOKEN"] = entered

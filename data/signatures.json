@@ -204,7 +204,7 @@
     },
     {
       "name": "Firebase Database URL",
-      "pattern": "https:\\/\\/[a-z0-9-]+\\.firebaseio\\.com",
+      "pattern": "https:\\/\\/[a-z0-9-]+\\.firebaseio\\.com[^\\s\"'<>]*\\.json",
       "tags": []
     },
     {

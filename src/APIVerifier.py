@@ -204,10 +204,11 @@ def main():
     print(f"[*] Threw away {total_discarded} invalid/revoked keys.")
     print(f"[*] Silently dropped {total_skipped} unhandled keys.")
 
-    with open(LEAKED_KEYS_FILE, "w", encoding="utf-8") as f:
+    with open(VERIFIED_KEYS_FILE, "w", encoding="utf-8") as f:
         json.dump(verified_only, f, indent=4)
-        
-    print(f"[+] Overwrote {LEAKED_KEYS_FILE} with only the strictly verified AI keys.")
+
+    print(f"[+] Wrote {len(verified_only)} verified repo(s) to {VERIFIED_KEYS_FILE}.")
+    print(f"[*] Original {LEAKED_KEYS_FILE} left untouched — unverified keys preserved for AISearch.")
 
 if __name__ == "__main__":
     main()
