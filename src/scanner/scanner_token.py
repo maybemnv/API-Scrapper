@@ -15,3 +15,21 @@ def prompt_github_token(console=None) -> Optional[str]:
             print("[yellow][!] Warning: GITHUB_TOKEN format looks invalid. Expected github_pat_ or ghp_ prefix.[/]")
         return token
     return None
+
+from rich.prompt import Prompt
+
+
+def prompt_github_token():
+    try:
+        token = Prompt.ask(
+            "[cyan]GitHub token (optional, press Enter to skip)[/]",
+            default="",
+            show_default=False,
+            password=True,
+        )
+    except (EOFError, KeyboardInterrupt):
+        return
+
+    token = (token or "").strip()
+    if token:
+        os.environ["GITHUB_TOKEN"] = token
