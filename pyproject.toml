@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "x3r0day-api-sniffer"
+version = "0.1.0"
+description = "GitHub-focused secret discovery toolkit for scanning public repositories"
+readme = "README.md"
+authors = [{ name = "XeroDay" }]
+license = { text = "MIT" }
+requires-python = ">=3.8"
+dependencies = ["requests", "rich"]
+
+[project.urls]
+Repository = "https://github.com/maybemnv/API-Scrapper"
+
+[tool.ruff]
+line-length = 120
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.8"
+strict = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = ["scanner", "shared"]
+strict = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
