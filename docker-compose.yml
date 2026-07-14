@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  api-sniffer:
+    build: .
+    container_name: x3r0day-sniffer
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
