@@ -13,12 +13,10 @@ The project is organized around discovery, scanning, and querying, with an AI-fi
 - `AI_POLICY_PATH`: Optional. Overrides the default policy path (`config/ai_policy.json`).
 
 **`config/ai_policy.json`**
-
 - Defines the Groq API endpoint, model name, and temperature settings.
 - Controls workflow routing rules and the AI query planner behavior.
 
 **`data/signatures.json`**
-
 - Contains all signature definitions (name + regex + tags).
 - Heroku rules are tagged `heroku` and can be included with `--scan-heroku-keys`.
 
@@ -137,12 +135,12 @@ API Sniffer/
 
 The following files are generated at runtime and are not part of the source code:
 
-| File                | Purpose                                                |
-| ------------------- | ------------------------------------------------------ |
+| File | Purpose |
+|---|---|
 | `recent_repos.json` | Queue of discovered repositories waiting to be scanned |
-| `leaked_keys.json`  | Database of detected secrets                           |
-| `clean_repos.json`  | Repositories that were scanned with no findings        |
-| `failed_repos.json` | Repositories that failed to download or parse          |
+| `leaked_keys.json` | Database of detected secrets |
+| `clean_repos.json` | Repositories that were scanned with no findings |
+| `failed_repos.json` | Repositories that failed to download or parse |
 
 Optional local input file:
 
@@ -195,7 +193,6 @@ Examples you can type:
 4. `run discovery and scanning, then summarize leaks by category`
 
 Notes:
-
 1. If your request is only about existing results (like “show all API keys”), it skips discovery and scanning and just queries the local database.
 2. For larger runs, setting `GITHUB_TOKEN` (or `GH_TOKEN`) helps avoid GitHub rate limits.
 3. If you want the scanner to persist proxy pruning, launch with `python main.py --up-proxy`.
@@ -246,7 +243,6 @@ The scanner reads from `recent_repos.json`, resolves the repository's default br
 If you are scanning at scale, set `GITHUB_TOKEN` (or `GH_TOKEN`) in your environment so GitHub gives you a higher rate limit.
 
 **Scanner controls:**
-
 - `Space`: Pause/resume scanning
 - `i`: Enter AI-assisted repo insertion mode
 - `Esc`: Cancel repo insertion input
@@ -286,17 +282,17 @@ Signature rules are data-driven and loaded from `data/signatures.json`. You can 
 
 Examples of supported categories include:
 
-| Category                      | Examples                                                                                           |
-| ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| AI and LLM Providers          | OpenAI (legacy/project), Anthropic, Groq, xAI (Grok), OpenRouter, HuggingFace, Replicate, Cerebras |
-| Cloud and Infrastructure      | AWS Access Keys, AWS Session Tokens, DigitalOcean, Google API/GCP, Heroku, Databricks              |
-| Source Control                | GitHub classic PATs, GitHub fine-grained PATs, GitLab PATs                                         |
-| Package Registries            | NPM, PyPI                                                                                          |
-| Communication and Webhooks    | Discord bot tokens, Discord webhooks, Slack bot/user tokens, Slack webhooks, Telegram              |
-| Payments and Commerce         | Stripe, Square, Shopify                                                                            |
-| Email and Messaging           | SendGrid, Mailgun, Twilio                                                                          |
-| Database and Backend Services | Supabase, Firebase, PlanetScale, Airtable, Appwrite, Deta, PocketBase                              |
-| Other Utilities               | Postman, Mapbox, Sentry                                                                            |
+| Category | Examples |
+|---|---|
+| AI and LLM Providers | OpenAI (legacy/project), Anthropic, Groq, xAI (Grok), OpenRouter, HuggingFace, Replicate, Cerebras |
+| Cloud and Infrastructure | AWS Access Keys, AWS Session Tokens, DigitalOcean, Google API/GCP, Heroku, Databricks |
+| Source Control | GitHub classic PATs, GitHub fine-grained PATs, GitLab PATs |
+| Package Registries | NPM, PyPI |
+| Communication and Webhooks | Discord bot tokens, Discord webhooks, Slack bot/user tokens, Slack webhooks, Telegram |
+| Payments and Commerce | Stripe, Square, Shopify |
+| Email and Messaging | SendGrid, Mailgun, Twilio |
+| Database and Backend Services | Supabase, Firebase, PlanetScale, Airtable, Appwrite, Deta, PocketBase |
+| Other Utilities | Postman, Mapbox, Sentry |
 
 ---
 

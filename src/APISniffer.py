@@ -1,57 +1,6 @@
-# ---------------------------------------------------------------------------------- #
-#                            Part of the X3r0Day project.                            #
-#              You are free to use, modify, and redistribute this code,              #
-#          provided proper credit is given to the original project X3r0Day.          #
-# ---------------------------------------------------------------------------------- #
 
-##############################################################################################################################################################
-#    So This code basically scrapes the repos and saves them in `recent_repos.json` file, and it uses proxy list if github API blocks/ratelimits your IP.    #
-##############################################################################################################################################################
-
-# ---------------------------------------------------------------------------------- #
-#                                   DISCLAIMER                                       #
-# ---------------------------------------------------------------------------------- #
-# This tool is part of the X3r0Day Framework and is intended for educational         #
-# security research, and defensive analysis purposes only.                           #
-#                                                                                    #
-# The script queries publicly available GitHub repository metadata and stores it     #
-# locally for further analysis. It does not exploit, access, or modify any system.   #
-#                                                                                    #
-# Users are solely responsible for how this software is used. The authors of the     #
-# X3r0Day project do not encourage or condone misuse, unauthorized access, or any    #
-# activity that violates applicable laws, regulations, or the terms of service of    #
-# any platform.                                                                      #
-#                                                                                    #
-# Always respect platform policies, rate limits, and the privacy of developers.      #
-# If you discover sensitive information or exposed credentials during research,      #
-# follow responsible disclosure practices and notify the affected parties by         #
-# opening **Issues**                                                                 #
-#                                                                                    #
-# By using this software, you acknowledge that you understand these conditions and   #
-# accept full responsibility for your actions.                                       #
-#                                                                                    #
-# Project: X3r0Day Framework                                                         #
-# Tool:    X3r0Day's API Sniffer                                                     #
-# Author:  XeroDay                                                                   #
-# ---------------------------------------------------------------------------------- #
-
-
-#--------------------------------------#
-#     Error Codes and its meanings     #
-# -------------------------------------#
-#   422 = No more results after that   #
-#   200 = OKAY/GOOD                    #
-#   403 = Access Denied                #
-#   404 = Not Found                    #
-# ------------------------------------ #
-
-
-
-
-from __future__ import annotations
 
 import argparse
-import itertools
 import json
 import os
 import random
