@@ -28,47 +28,35 @@ def dump_json_safely(payload: Any, filename: str) -> None:
     write_json_snapshot(payload if isinstance(payload, list) else [payload], filename)
 
 
-def ensure_json_list_file(filename: str) -> None:
-    if not os.path.exists(filename):
-        write_json_snapshot([], filename)
-
-
-def remove_from_queue(repo_name: str, filename: str = "recent_repos.json") -> None:
-    if not repo_name or not os.path.exists(filename):
-        return
-    try:
-        with open(filename, "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-    except (json.JSONDecodeError, OSError):
-        return
-    if not isinstance(data, list):
-        return
-    kept = [
-        entry
-        for entry in data
-        if not (isinstance(entry, dict) and entry.get("name") == repo_name)
-    ]
-    if len(kept) != len(data):
-        write_json_snapshot(kept, filename)
-
-
 def stream_json_entries(filepath: str) -> Generator[dict, None, None]:
-    with open(filepath, "r", encoding="utf-8") as f:
-        content = f.read()
+    # Read line-by-line (lazy) so a large result file is never fully held in
+    # memory at once. The files we write use json.dump(..., indent=4), so
+    # each top-level object starts on its own "{" line and ends on its own
+    # "}" / "}," line.
     decoder = json.JSONDecoder()
-    idx = 0
-    while idx < len(content):
-        while idx < len(content) and content[idx].isspace():
-            idx += 1
-        if idx >= len(content):
-            break
-        if content[idx] == "[":
-            idx += 1
-            continue
-        if content[idx] == "]":
-            break
-        obj, end = decoder.raw_decode(content, idx)
-        yield obj
-        idx = end
-        if idx < len(content) and content[idx] == ",":
-            idx += 1
+    with open(filepath, "r", encoding="utf-8") as f:
+        buffer: list = []
+        in_object = False
+        for line in f:
+            stripped = line.strip()
+            if not in_object:
+                if stripped in ("", "[", "]", "],"):
+                    continue
+                if stripped.startswith("{"):
+                    in_object = True
+                    buffer = [line]
+                    if stripped.endswith("}") or stripped.endswith("},"):
+                        yield _parse_entry(buffer)
+                        in_object = False
+                        buffer = []
+            else:
+                buffer.append(line)
+                if stripped in ("}", "},"):
+                    yield _parse_entry(buffer)
+                    in_object = False
+                    buffer = []
+
+
+def _parse_entry(buffer: list) -> dict:
+    text = "".join(buffer).rstrip().rstrip(",")
+    return json.loads(text)

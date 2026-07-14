@@ -1,44 +1,42 @@
 import threading
 from collections import deque
+from typing import Optional
 
+PROXY_LIST_TXT: str = "live_proxies.txt"
+UPDATE_PROXY_FILE: bool = False
+MAX_THREADS: int = 5
+MAX_HISTORY_DEPTH: int = 5
+SCAN_HEROKU_KEYS: bool = False
+SCAN_COMMIT_HISTORY: bool = True
+PREFER_PROXY: bool = False
+LOG_FILE: Optional[str] = None
+DRY_RUN: bool = False
+MAX_AGE_DAYS: int = 90
+DEFAULT_BRANCH_FALLBACKS: list = ["main", "master"]
+INCLUDE_EXTENSIONS: Optional[list] = None
+EXCLUDE_EXTENSIONS: Optional[list] = None
+QUEUE_JSON: str = "recent_repos.json"
+AI_POL: Optional[dict] = None
 
-MAX_THREADS = 8
-
-MAX_DOWNLOAD_SIZE_BYTES = 20 * 1024 * 1024
-LINE_CUTOFF = 2000
-MAX_HISTORY_DEPTH = 5
-SCAN_COMMIT_HISTORY = True
-
-DEFAULT_BRANCH_FALLBACKS = ["main", "master"]
-
-QUEUE_JSON = "recent_repos.json"
-LEAKS_JSON = "leaked_keys.json"
-DEAD_TARGETS_JSON = "failed_repos.json"
-BORING_REPOS_JSON = "clean_repos.json"
-
-AI_POL = None
-
-exit_prog = False
-is_typing_url = False
-input_buffer = ""
-
-ui_mutex = threading.Lock()
-tag_mutex = threading.Lock()
-pause_event = threading.Event()
-pause_event.set()
-
-scoreboard = {
-    "total": 0,
-    "remaining": 0,
-    "scanned": 0,
-    "clean": 0,
-    "leaks": 0,
-    "failed": 0,
-}
-
+pause_event: Optional[threading.Event] = None
+exit_prog: bool = False
+active_proxies: list = []
+is_typing_url: bool = False
+input_buffer: str = ""
+manual_target_queue: deque = deque()
+manual_target_names: set = set()
+available_thread_tags: deque = deque()
 thread_dashboard: dict = {}
-log_history: list = []
-leak_history: list = []
-fail_history: list = []
+log_history: deque = deque(maxlen=6)
+fail_history: deque = deque(maxlen=10)
+leak_history: deque = deque(maxlen=10)
+scoreboard: dict = {"total": 0, "scanned": 0, "leaks": 0, "clean": 0, "failed": 0, "remaining": 0}
 
-available_thread_tags = deque(f"Thread-{i + 1}" for i in range(MAX_THREADS))
+manual_target_mutex = threading.Lock()
+io_mutex = threading.Lock()
+ui_mutex = threading.Lock()
+proxy_lock = threading.Lock()
+good_proxy_lock = threading.Lock()
+proxy_fail: dict = {}
+good_proxies: set = set()
+PROXY_FAIL_LIMIT: int = 5
